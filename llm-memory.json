@@ -1,0 +1,32 @@
+{
+  "project_profile": [
+    "Clean Konva-based image editor built with React 19 + Vite + Tailwind; single-page app rendering KonvaLayerEditor at src/pages/KonvaLayerEditor.jsx with no navigation."
+  ],
+  "active_objectives": [
+    {
+      "id": "clean-konva-editor",
+      "summary": "Repository cleaned to single KonvaLayerEditor implementation; all legacy editors (Fabric, PixiJS, TUI) removed along with their dependencies.",
+      "owner": "assistant",
+      "status": "completed",
+      "last_updated": "2025-11-18T01:49Z"
+    }
+  ],
+  "implementation_notes": [
+    "KonvaLayerEditor (src/pages/KonvaLayerEditor.jsx, 1651 lines) is the sole page component with full editor UI: toolbar with tool dropdowns, canvas sidebar for artboard management, inspector panel for properties, rulers, transform handles, and multi-canvas support.",
+    "Dependencies limited to: React 19, react-dom, konva, react-konva, plus dev tooling (Vite, Tailwind, ESLint).",
+    "Toolbar supports: select/zoom/crop tools, flip/rotate transforms, draw/shape/text insertion with dropdowns. Filters accessible via standalone button.",
+    "Multi-artboard workflow: each Canvas entry in sidebar has independent frame/background; selecting switches the Stage context.",
+    "All SVG icons stored in public/icons/<letter>/name.svg with currentColor for theming, rendered via src/components/Icon.jsx cache.",
+    "Undo/redo (Cmd+Z/Cmd+Shift+Z), Alt-drag cloning, zoom-at-pointer, Esc to cancel pending inserts."
+  ],
+  "decision_log": [
+    "2025-11-18: Major cleanup - removed all experimental editors (Fabric, PixiJS, TUI, filter demos) and dependencies, keeping only Konva-based implementation.",
+    "2025-11-18: Simplified App.jsx to directly render KonvaLayerEditor with no navigation or lazy loading.",
+    "2025-11-18: Fixed syntax errors in KonvaLayerEditor (extra closing brace at line 900 causing 'return outside function' error).",
+    "2025-11-17: Added docs/llm-context-protocol/protocol.md and llm-rules.md for LLM collaboration workflow."
+  ],
+  "communication_style": [
+    "User writes casually, expects concise teammate responses with clear next steps."
+  ],
+  "experiments": []
+}

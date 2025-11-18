@@ -1,0 +1,85 @@
+{
+  "hash": "4fcd1891",
+  "configHash": "4609ff74",
+  "lockfileHash": "827fd06c",
+  "browserHash": "f8f2056c",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "893e4e1c",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "38e813c0",
+      "needsInterop": true
+    },
+    "tui-image-editor": {
+      "src": "../../node_modules/tui-image-editor/dist/tui-image-editor.js",
+      "file": "tui-image-editor.js",
+      "fileHash": "f1e19d33",
+      "needsInterop": true
+    },
+    "pixi.js": {
+      "src": "../../node_modules/pixi.js/lib/index.mjs",
+      "file": "pixi__js.js",
+      "fileHash": "15b3b90e",
+      "needsInterop": false
+    },
+    "pixi-filters": {
+      "src": "../../node_modules/pixi-filters/lib/index.mjs",
+      "file": "pixi-filters.js",
+      "fileHash": "9a7e6d52",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "WebGLRenderer-7MVI7RRK": {
+      "file": "WebGLRenderer-7MVI7RRK.js"
+    },
+    "chunk-IGXLOIK6": {
+      "file": "chunk-IGXLOIK6.js"
+    },
+    "chunk-ZI5OMF6D": {
+      "file": "chunk-ZI5OMF6D.js"
+    },
+    "chunk-BH3M6K7T": {
+      "file": "chunk-BH3M6K7T.js"
+    },
+    "browserAll-SICNR5YL": {
+      "file": "browserAll-SICNR5YL.js"
+    },
+    "chunk-7JGELBM5": {
+      "file": "chunk-7JGELBM5.js"
+    },
+    "webworkerAll-V7NVV2JN": {
+      "file": "webworkerAll-V7NVV2JN.js"
+    },
+    "chunk-LRBJIAYH": {
+      "file": "chunk-LRBJIAYH.js"
+    },
+    "chunk-MMWKNZUD": {
+      "file": "chunk-MMWKNZUD.js"
+    },
+    "WebGPURenderer-RXV7MPLE": {
+      "file": "WebGPURenderer-RXV7MPLE.js"
+    },
+    "chunk-37MC43CN": {
+      "file": "chunk-37MC43CN.js"
+    },
+    "chunk-COJMB3VN": {
+      "file": "chunk-COJMB3VN.js"
+    },
+    "chunk-VOPLUIIP": {
+      "file": "chunk-VOPLUIIP.js"
+    },
+    "chunk-KAPQV3DN": {
+      "file": "chunk-KAPQV3DN.js"
+    },
+    "chunk-5WRI5ZAA": {
+      "file": "chunk-5WRI5ZAA.js"
+    }
+  }
+}
