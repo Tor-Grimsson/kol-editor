@@ -60,8 +60,12 @@ const AtomsPage = () => {
                 <p className="text-xs text-zinc-500 uppercase mb-2">Icon Buttons (square)</p>
                 <div className="flex gap-3 items-center">
                   <Button variant="primary" square title="Add">+</Button>
-                  <Button variant="default" square title="Delete">×</Button>
-                  <Button variant="ghost" square title="Settings">™</Button>
+                  <Button variant="default" square title="Delete">
+                    <Icon name="trash" size={16} />
+                  </Button>
+                  <Button variant="ghost" square title="Settings">
+                    <Icon name="caret-down" size={16} />
+                  </Button>
                   <Button variant="primary" square>
                     <Icon name="star" size={16} />
                   </Button>
@@ -231,7 +235,7 @@ const AtomsPage = () => {
         {/* Footer */}
         <div className="border-t border-zinc-800 pt-6 pb-12">
           <p className="text-sm text-zinc-500">
-            Component library structure: <Link to="/components/atoms" className="text-blue-400">Atoms</Link> ’ <Link to="/components/molecules" className="text-zinc-400">Molecules</Link> ’ <Link to="/components/organisms" className="text-zinc-400">Organisms</Link>
+            Component library structure: <Link to="/components/atoms" className="text-blue-400">Atoms</Link> ï¿½ <Link to="/components/molecules" className="text-zinc-400">Molecules</Link> ï¿½ <Link to="/components/organisms" className="text-zinc-400">Organisms</Link>
           </p>
         </div>
       </div>

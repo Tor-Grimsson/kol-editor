@@ -1,3 +1,5 @@
+import Icon from '../icons/Icon'
+
 const ObjectItem = ({
   object,
   isSelected,
@@ -19,16 +21,18 @@ const ObjectItem = ({
             e.stopPropagation()
             onToggleVisibility()
           }}
+          className={object.visible ? '' : 'opacity-40'}
         >
-          {object.visible ? '=A' : '=«'}
+          <Icon name="visible2" size={14} />
         </button>
         <button
           onClick={(e) => {
             e.stopPropagation()
             onDelete()
           }}
+          className="hover:text-red-400"
         >
-          ×
+          <Icon name="trash" size={14} />
         </button>
       </div>
     </div>

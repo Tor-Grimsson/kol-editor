@@ -4,6 +4,7 @@ import Button from '../atoms/Button'
 
 const LayersSidebar = ({
   layers,
+  infiniteCanvasShapes = [],
   selectedLayerId,
   selectedObjectId,
   expandedLayers,
@@ -23,10 +24,28 @@ const LayersSidebar = ({
         Canvas
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        {layers.length === 0 && (
-          <div className="text-zinc-600 text-center py-4 border border-dashed border-zinc-800 rounded">
-            Empty
+      <div
+        className="flex-1 overflow-y-auto p-2 space-y-1"
+        onClick={(e) => {
+          // If clicking on the empty space (not on a layer item), deselect everything
+          if (e.target === e.currentTarget) {
+            onLayerSelect(null, null)
+          }
+        }}
+      >
+        {/* Infinite Canvas Shapes */}
+        {infiniteCanvasShapes.length > 0 && (
+          <div className="space-y-1 mb-2">
+            {infiniteCanvasShapes.map((obj) => (
+              <ObjectItem
+                key={obj.id}
+                object={obj}
+                isSelected={selectedObjectId === obj.id}
+                onSelect={() => onObjectSelect(null, obj.id)}
+                onToggleVisibility={() => onToggleObjectVisibility(null, obj.id)}
+                onDelete={() => onDeleteObject(null, obj.id)}
+              />
+            ))}
           </div>
         )}
 

@@ -1,14 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Circle,
-  Layer as KonvaLayer,
   Line,
   Rect,
   RegularPolygon,
-  Stage,
   Star,
   Text as KonvaText,
-  Transformer,
 } from 'react-konva'
 
 import TopNav from '../components/organisms/TopNav'
@@ -16,38 +13,42 @@ import Toolbar from '../components/organisms/Toolbar'
 import LayersSidebar from '../components/organisms/LayersSidebar'
 import Inspector from '../components/organisms/Inspector'
 import CanvasArea from '../components/organisms/CanvasArea'
-import { TOOL_SUBMENUS } from '../constants/editor'
+import { TOOL_SUBMENUS, DEFAULT_CANVAS, BASE_COLORS } from '../constants/editor'
 import { hexToHsb, hsbToHex } from '../utils/colors'
 import { clamp } from '../utils/geometry'
 
-const DEFAULT_CANVAS = { width: 1200, height: 700 }
-const BASE_COLORS = ['#22d3ee', '#f472b6', '#a78bfa', '#4ade80', '#facc15']
-const RULER_STEP = 100
 const dropdownDefaults = { toolId: null, left: 0 }
 
 const randomFromPalette = (index) => BASE_COLORS[index % BASE_COLORS.length]
 
-const createCanvasDescriptor = (index, overrides = {}) => ({
-  id: overrides.id ?? `canvas-${index}`,
+const createFrameShape = (index, overrides = {}) => ({
+  id: overrides.id ?? `frame-${index}`,
+  type: 'frame',
   name: `Canvas ${index}`,
-  background: '#18181b',
-  frame: { x: 0, y: 0, width: DEFAULT_CANVAS.width, height: DEFAULT_CANVAS.height, ...(overrides.frame || {}) },
+  x: overrides.x ?? 0,
+  y: overrides.y ?? 0,
+  width: overrides.width ?? DEFAULT_CANVAS.width,
+  height: overrides.height ?? DEFAULT_CANVAS.height,
+  rotation: 0,
+  background: 'rgba(255, 255, 255, 0.02)', // Very subtle fill so frames are clickable
   visible: true,
-  objects: [],
+  children: [],
+  frameId: null,
+  parentId: null,
   ...overrides,
 })
 
 const KolEditor = () => {
-  const [layers, setLayers] = useState(() => [createCanvasDescriptor(1)])
-  const [selectedLayerId, setSelectedLayerId] = useState('canvas-1')
-  const [selectedObjectId, setSelectedObjectId] = useState(null)
-  const [expandedLayers, setExpandedLayers] = useState(() => new Set())
+  // Flat shapes map - ALL shapes (including frames) in one place
+  const [shapes, setShapes] = useState({})
+  const [selectedShapeId, setSelectedShapeId] = useState(null)
+  const [selectedShapeIds, setSelectedShapeIds] = useState([]) // Multi-select support
+  const [expandedShapes, setExpandedShapes] = useState(() => new Set())
+  const [canvasBackground, setCanvasBackground] = useState('#18181b') // Infinite canvas background
   const [zoomLevel, setZoomLevel] = useState(1)
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 })
-  const [artboardPosition, setArtboardPosition] = useState({ x: 0, y: 0 })
   const [activeTool, setActiveTool] = useState('select')
   const [dropdownState, setDropdownState] = useState(dropdownDefaults)
-  const [canvasSize, setCanvasSize] = useState(DEFAULT_CANVAS)
   const [canvasDialog, setCanvasDialog] = useState({ open: false, width: DEFAULT_CANVAS.width, height: DEFAULT_CANVAS.height })
   const [pendingInsert, setPendingInsert] = useState(null)
   const [dragDraft, setDragDraft] = useState(null)
@@ -60,34 +61,78 @@ const KolEditor = () => {
   const stageRef = useRef(null)
   const transformerRef = useRef(null)
   const nodeRefs = useRef(new Map())
-  const nextLayerIndexRef = useRef(2)
-  const nextObjectIdRef = useRef(1)
+  const nextFrameIndexRef = useRef(1)
+  const nextShapeIdRef = useRef(1)
   const colorIndexRef = useRef(0)
   const cloneDragRef = useRef(null)
   const undoStackRef = useRef([])
   const redoStackRef = useRef([])
 
-  const selectedLayer = useMemo(() => layers.find((layer) => layer.id === selectedLayerId) ?? null, [layers, selectedLayerId])
-  const selectedObject = useMemo(() => selectedLayer?.objects?.find((obj) => obj.id === selectedObjectId) ?? null, [selectedLayer, selectedObjectId])
+  // Derive current selections from shapes map
+  const selectedShape = useMemo(() => shapes[selectedShapeId] ?? null, [shapes, selectedShapeId])
+
+  // Get selected frame (either the shape itself if it's a frame, or its parent frame)
+  const selectedFrame = useMemo(() => {
+    if (!selectedShape) return null
+    if (selectedShape.type === 'frame') return selectedShape
+    return shapes[selectedShape.frameId] ?? null
+  }, [shapes, selectedShape])
+
+  // Get selected object (non-frame shape)
+  const selectedObject = useMemo(() => {
+    return selectedShape?.type !== 'frame' ? selectedShape : null
+  }, [selectedShape])
+
+  // Derive canvas properties from selected frame (NO separate state!)
+  const canvasSize = useMemo(() => {
+    if (!selectedFrame) return DEFAULT_CANVAS
+    return { width: selectedFrame.width, height: selectedFrame.height }
+  }, [selectedFrame])
+
+  const artboardPosition = useMemo(() => {
+    if (!selectedFrame) return { x: 0, y: 0 }
+    return { x: selectedFrame.x, y: selectedFrame.y }
+  }, [selectedFrame])
+
+  // Get all frames (for sidebar) with populated children
+  const frames = useMemo(() => {
+    return Object.values(shapes)
+      .filter(shape => shape.type === 'frame')
+      .map(frame => ({
+        ...frame,
+        objects: frame.children.map(id => shapes[id]).filter(Boolean)
+      }))
+  }, [shapes])
+
+  // Get shapes on infinite canvas (not in any frame)
+  const infiniteCanvasShapes = useMemo(() => {
+    return Object.values(shapes).filter(shape => shape.type !== 'frame' && !shape.frameId)
+  }, [shapes])
+
+  // Get visible shapes for rendering (children of selected frame)
+  const visibleShapes = useMemo(() => {
+    if (!selectedFrame) return []
+    return selectedFrame.children.map(id => shapes[id]).filter(Boolean)
+  }, [shapes, selectedFrame])
 
   const pushUndoState = (snapshot) => {
-    undoStackRef.current.push(JSON.stringify(layers))
+    undoStackRef.current.push(JSON.stringify(shapes))
     redoStackRef.current = []
-    setLayers(snapshot)
+    setShapes(snapshot)
   }
 
   const handleUndo = () => {
     const last = undoStackRef.current.pop()
     if (!last) return
-    redoStackRef.current.push(JSON.stringify(layers))
-    setLayers(JSON.parse(last))
+    redoStackRef.current.push(JSON.stringify(shapes))
+    setShapes(JSON.parse(last))
   }
 
   const handleRedo = () => {
     const next = redoStackRef.current.pop()
     if (!next) return
-    undoStackRef.current.push(JSON.stringify(layers))
-    setLayers(JSON.parse(next))
+    undoStackRef.current.push(JSON.stringify(shapes))
+    setShapes(JSON.parse(next))
   }
 
   useEffect(() => {
@@ -98,31 +143,37 @@ const KolEditor = () => {
     stage.batchDraw()
   }, [zoomLevel, stagePosition])
 
-  useEffect(() => {
-    const selectedCanvas = layers.find((layer) => layer.id === selectedLayerId)
-    if (!selectedCanvas) return
-    const { frame } = selectedCanvas
-    const needsPositionUpdate = frame.x !== artboardPosition.x || frame.y !== artboardPosition.y
-    const needsSizeUpdate = frame.width !== canvasSize.width || frame.height !== canvasSize.height
-    if (needsPositionUpdate) {
-      setArtboardPosition({ x: frame.x, y: frame.y })
-    }
-    if (needsSizeUpdate) {
-      setCanvasSize({ width: frame.width, height: frame.height })
-    }
-  }, [selectedLayerId, layers])
+  // NO SYNC NEEDED! Canvas properties are derived from selectedFrame
 
   useEffect(() => {
     const transformer = transformerRef.current
-    const node = selectedObjectId ? nodeRefs.current.get(selectedObjectId) : null
-    if (transformer && node && node.getStage()) {
+    if (!transformer) return
+
+    // Handle multi-select
+    if (selectedShapeIds.length > 0) {
+      const nodes = selectedShapeIds
+        .map(id => nodeRefs.current.get(id))
+        .filter(node => node && node.getStage())
+      if (nodes.length > 0) {
+        transformer.nodes(nodes)
+        transformer.getLayer()?.batchDraw()
+      } else {
+        transformer.nodes([])
+        transformer.getLayer()?.batchDraw()
+      }
+      return
+    }
+
+    // Handle single select
+    const node = selectedObject ? nodeRefs.current.get(selectedShapeId) : null
+    if (node && node.getStage()) {
       transformer.nodes([node])
       transformer.getLayer()?.batchDraw()
-    } else if (transformer) {
+    } else {
       transformer.nodes([])
       transformer.getLayer()?.batchDraw()
     }
-  }, [selectedObjectId, selectedObject])
+  }, [selectedShapeId, selectedShapeIds, selectedObject])
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -135,7 +186,34 @@ const KolEditor = () => {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      // Ignore if typing in input fields
+      if (['INPUT', 'TEXTAREA'].includes(event.target.tagName) || event.target.isContentEditable) return
+
       if (event.key === 'Alt') setIsAltPressed(true)
+
+      // Cmd+A / Ctrl+A - Select all
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
+        event.preventDefault()
+        if (selectedFrame) {
+          // Select all objects in the current frame
+          const frameChildren = selectedFrame.children.filter(id => shapes[id]?.visible !== false)
+          if (frameChildren.length > 0) {
+            setSelectedShapeIds(frameChildren)
+            setSelectedShapeId(null)
+          }
+        } else {
+          // Select all shapes on infinite canvas
+          const infiniteShapes = Object.values(shapes)
+            .filter(s => s.type !== 'frame' && !s.frameId && s.visible !== false)
+            .map(s => s.id)
+          if (infiniteShapes.length > 0) {
+            setSelectedShapeIds(infiniteShapes)
+            setSelectedShapeId(null)
+          }
+        }
+        return
+      }
+
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
         handleUndo()
         event.preventDefault()
@@ -146,25 +224,71 @@ const KolEditor = () => {
         event.preventDefault()
         return
       }
+
+      // Handle delete keys
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        // Delete multi-selected objects
+        if (selectedShapeIds.length > 0) {
+          const newShapes = { ...shapes }
+          const framesToUpdate = new Set()
+
+          selectedShapeIds.forEach(shapeId => {
+            const shape = shapes[shapeId]
+            if (shape && shape.type !== 'frame') {
+              delete newShapes[shapeId]
+              if (shape.frameId) {
+                framesToUpdate.add(shape.frameId)
+              }
+            }
+          })
+
+          // Update parent frames to remove deleted children
+          framesToUpdate.forEach(frameId => {
+            const frame = shapes[frameId]
+            if (frame) {
+              newShapes[frameId] = {
+                ...frame,
+                children: frame.children.filter(id => !selectedShapeIds.includes(id))
+              }
+            }
+          })
+
+          pushUndoState(newShapes)
+          setSelectedShapeIds([])
+          event.preventDefault()
+          return
+        }
+
+        // Delete single selected object
+        if (selectedObject) {
+          handleDeleteShape(selectedObject.frameId, selectedObject.id)
+          event.preventDefault()
+        } else if (selectedFrame) {
+          handleDeleteFrame(selectedFrame.id)
+          event.preventDefault()
+        }
+        return
+      }
+
       if (event.key === 'Escape') {
         setPendingInsert(null)
         setDragDraft(null)
-        setSelectedObjectId(null)
+        setSelectedShapeId(null)
+        setSelectedShapeIds([])
       }
-      if (['INPUT', 'TEXTAREA'].includes(event.target.tagName) || event.target.isContentEditable) return
       if (event.key === 'v' || event.key === 'V') {
         setActiveTool('select')
         setDropdownState(dropdownDefaults)
         setPendingInsert(null)
       }
-      if (event.key === 'Backspace') {
-        if (selectedLayerId && selectedObjectId) {
-          handleDeleteObject(selectedLayerId, selectedObjectId)
-          event.preventDefault()
-        } else if (selectedLayerId) {
-          handleDeleteLayer(selectedLayerId)
-          event.preventDefault()
-        }
+      if (event.key === 'r' || event.key === 'R') {
+        handleShapeInsert('rect')
+        setActiveTool('shape')
+      }
+      if (event.key === 'f' || event.key === 'F') {
+        setActiveTool('frame')
+        setDropdownState(dropdownDefaults)
+        setPendingInsert(null)
       }
     }
     const handleKeyUp = (event) => {
@@ -176,155 +300,259 @@ const KolEditor = () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [selectedLayerId, selectedObjectId])
+  }, [selectedShapeId, selectedShapeIds, selectedObject, selectedFrame, shapes])
 
-  const ensureLayerExpanded = (layerId) => {
-    setExpandedLayers((prev) => {
-      if (prev.has(layerId)) return prev
+  const ensureFrameExpanded = (frameId) => {
+    setExpandedShapes((prev) => {
+      if (prev.has(frameId)) return prev
       const next = new Set(prev)
-      next.add(layerId)
+      next.add(frameId)
       return next
     })
   }
 
-  const getDefaultFrame = () => ({ x: canvasSize.width / 2 - 100, y: canvasSize.height / 2 - 80, width: 200, height: 160, rotation: 0 })
+  const getDefaultShapePosition = () => ({
+    x: canvasSize.width / 2 - 100,
+    y: canvasSize.height / 2 - 80,
+    width: 200,
+    height: 160,
+    rotation: 0
+  })
 
-  const createObject = (type, overrides = {}) => {
-    const id = `object-${nextObjectIdRef.current++}`
+  const createShape = (type, overrides = {}) => {
+    const id = `shape-${nextShapeIdRef.current++}`
     const color = overrides.color ?? randomFromPalette(colorIndexRef.current++)
+    const position = overrides.position ?? getDefaultShapePosition()
+
     return {
       id,
       type,
       name: overrides.name ?? type.charAt(0).toUpperCase() + type.slice(1),
+      x: position.x,
+      y: position.y,
+      width: position.width,
+      height: position.height,
+      rotation: position.rotation ?? 0,
       visible: true,
       opacity: 1,
       color,
-      frame: overrides.frame ?? getDefaultFrame(),
-      meta: overrides.meta ?? {},
+      children: [],
+      frameId: overrides.frameId ?? null,
+      parentId: overrides.parentId ?? null,
+      // Text-specific
       text: overrides.text ?? 'JetBrains Mono',
       fontFamily: overrides.fontFamily ?? 'JetBrains Mono, monospace',
       fontSize: overrides.fontSize ?? 32,
       fontStyle: overrides.fontStyle ?? 'normal',
+      ...overrides,
     }
   }
 
-  const ensureLayerForObject = () => {
-    if (selectedLayerId) return selectedLayerId
-    if (layers.length > 0) {
-      const last = layers[layers.length - 1]
-      setSelectedLayerId(last.id)
-      ensureLayerExpanded(last.id)
-      return last.id
-    }
-    const newLayerId = `layer-${nextLayerIndexRef.current++}`
-    pushUndoState([...layers, { id: newLayerId, name: `Layer ${nextLayerIndexRef.current - 1}`, visible: true, objects: [] }])
-    setSelectedLayerId(newLayerId)
-    ensureLayerExpanded(newLayerId)
-    return newLayerId
-  }
+  const ensureFrameForShape = () => {
+    // If we have a selected frame, use it
+    if (selectedFrame) return selectedFrame.id
 
-  const appendObjectToLayer = (layerId, object) => {
-    pushUndoState(
-      layers.map((layer) => (layer.id === layerId ? { ...layer, objects: [...layer.objects, object] } : layer)),
-    )
-    setSelectedLayerId(layerId)
-    setSelectedObjectId(object.id)
-    ensureLayerExpanded(layerId)
-  }
+    // Otherwise create a new frame
+    const index = nextFrameIndexRef.current++
+    const frameId = `frame-${index}`
+    const newFrame = createFrameShape(index, { id: frameId })
 
-  const updateObjectFrame = (layerId, objectId, updates) => {
-    pushUndoState(
-      layers.map((layer) => {
-        if (layer.id !== layerId) return layer
-        return {
-          ...layer,
-          objects: layer.objects.map((obj) =>
-            obj.id === objectId ? { ...obj, frame: { ...obj.frame, ...updates } } : obj,
-          ),
-        }
-      }),
-    )
-  }
-
-  const updateObject = (layerId, objectId, mapper) => {
-    pushUndoState(
-      layers.map((layer) => {
-        if (layer.id !== layerId) return layer
-        return {
-          ...layer,
-          objects: layer.objects.map((obj) => (obj.id === objectId ? mapper(obj) : obj)),
-        }
-      }),
-    )
-  }
-
-  const handleAddLayer = () => {
-    const index = nextLayerIndexRef.current++
-    const canvasId = `canvas-${index}`
-    const newCanvas = createCanvasDescriptor(index, {
-      id: canvasId,
-      frame: {
-        x: Math.max(0, artboardPosition.x + 40),
-        y: Math.max(0, artboardPosition.y + 40),
-        width: canvasSize.width,
-        height: canvasSize.height,
-      },
+    pushUndoState({
+      ...shapes,
+      [frameId]: newFrame
     })
-    pushUndoState([...layers, newCanvas])
-    setSelectedLayerId(canvasId)
-    setSelectedObjectId(null)
-    ensureLayerExpanded(canvasId)
+    setSelectedShapeId(frameId)
+    ensureFrameExpanded(frameId)
+    return frameId
   }
 
-  const handleDeleteLayer = (layerId) => {
-    if (layers.length === 1) return
-    const next = layers.filter((layer) => layer.id !== layerId)
-    pushUndoState(next)
-    if (selectedLayerId === layerId) {
-      const fallback = next[next.length - 1]
-      setSelectedLayerId(fallback?.id ?? null)
-      setSelectedObjectId(null)
+  const addShapeToFrame = (frameId, shape) => {
+    // If no frameId, add shape directly to infinite canvas
+    if (!frameId) {
+      pushUndoState({
+        ...shapes,
+        [shape.id]: {
+          ...shape,
+          frameId: null,
+          parentId: null
+        }
+      })
+      setSelectedShapeId(shape.id)
+      return
     }
-    setExpandedLayers((prev) => {
+
+    const frame = shapes[frameId]
+    if (!frame) return
+
+    pushUndoState({
+      ...shapes,
+      [frameId]: {
+        ...frame,
+        children: [...frame.children, shape.id]
+      },
+      [shape.id]: {
+        ...shape,
+        frameId,
+        parentId: frameId
+      }
+    })
+    setSelectedShapeId(shape.id)
+    ensureFrameExpanded(frameId)
+  }
+
+  const updateShape = (shapeId, updates) => {
+    const shape = shapes[shapeId]
+    if (!shape) return
+
+    pushUndoState({
+      ...shapes,
+      [shapeId]: {
+        ...shape,
+        ...updates
+      }
+    })
+  }
+
+  const updateShapePosition = (shapeId, positionUpdates) => {
+    const shape = shapes[shapeId]
+    if (!shape) return
+
+    pushUndoState({
+      ...shapes,
+      [shapeId]: {
+        ...shape,
+        ...positionUpdates
+      }
+    })
+  }
+
+  const handleAddFrame = () => {
+    const index = nextFrameIndexRef.current++
+    const frameId = `frame-${index}`
+
+    // Center the canvas in viewport or offset from selected frame
+    let x, y
+    if (selectedFrame) {
+      // Offset from current frame
+      x = Math.max(0, artboardPosition.x + 40)
+      y = Math.max(0, artboardPosition.y + 40)
+    } else {
+      // Center in viewport
+      const stage = stageRef.current
+      if (stage) {
+        const stageWidth = stage.width()
+        const stageHeight = stage.height()
+        x = (stageWidth / 2 - DEFAULT_CANVAS.width / 2 - stagePosition.x) / zoomLevel
+        y = (stageHeight / 2 - DEFAULT_CANVAS.height / 2 - stagePosition.y) / zoomLevel
+      } else {
+        x = 100
+        y = 100
+      }
+    }
+
+    const newFrame = createFrameShape(index, {
+      id: frameId,
+      x: Math.max(0, x),
+      y: Math.max(0, y),
+      width: DEFAULT_CANVAS.width,
+      height: DEFAULT_CANVAS.height,
+    })
+
+    pushUndoState({
+      ...shapes,
+      [frameId]: newFrame
+    })
+    setSelectedShapeId(frameId)
+    ensureFrameExpanded(frameId)
+  }
+
+  const handleDeleteFrame = (frameId) => {
+    const frame = shapes[frameId]
+    if (!frame || frame.type !== 'frame') return
+
+    // Remove frame and all its children
+    const newShapes = { ...shapes }
+    delete newShapes[frameId]
+    frame.children.forEach(childId => {
+      delete newShapes[childId]
+    })
+
+    pushUndoState(newShapes)
+
+    // Select another frame if this was selected
+    if (selectedShapeId === frameId) {
+      const remainingFrames = Object.values(newShapes).filter(s => s.type === 'frame')
+      setSelectedShapeId(remainingFrames[0]?.id ?? null)
+    }
+
+    setExpandedShapes((prev) => {
       const copy = new Set(prev)
-      copy.delete(layerId)
+      copy.delete(frameId)
       return copy
     })
   }
 
-  const toggleLayerVisibility = (layerId) => {
-    pushUndoState(
-      layers.map((layer) => (layer.id === layerId ? { ...layer, visible: !layer.visible } : layer)),
-    )
+  const toggleShapeVisibility = (shapeId) => {
+    const shape = shapes[shapeId]
+    if (!shape) return
+
+    pushUndoState({
+      ...shapes,
+      [shapeId]: {
+        ...shape,
+        visible: !shape.visible
+      }
+    })
   }
 
-  const toggleObjectVisibility = (layerId, objectId) => {
-    updateObject(layerId, objectId, (obj) => ({ ...obj, visible: !obj.visible }))
+  const handleDeleteShape = (frameId, shapeId) => {
+    const shape = shapes[shapeId]
+    if (!shape || shape.type === 'frame') return
+
+    const newShapes = { ...shapes }
+    delete newShapes[shapeId]
+
+    // If shape is in a frame, remove from parent's children array
+    if (shape.frameId) {
+      const parentFrame = shapes[shape.frameId]
+      if (parentFrame) {
+        newShapes[shape.frameId] = {
+          ...parentFrame,
+          children: parentFrame.children.filter(id => id !== shapeId)
+        }
+      }
+    }
+
+    pushUndoState(newShapes)
+
+    if (selectedShapeId === shapeId) {
+      setSelectedShapeId(shape.frameId || null)
+    }
   }
 
-  const handleDeleteObject = (layerId, objectId) => {
-    const next = layers
-      .map((layer) => {
-        if (layer.id !== layerId) return layer
-        return { ...layer, objects: layer.objects.filter((obj) => obj.id !== objectId) }
-      })
-      .filter((layer) => layer.objects.length > 0 || layer.id !== layerId)
-    pushUndoState(next)
-    if (selectedObjectId === objectId) setSelectedObjectId(null)
-  }
-
-  const moveLayer = (layerId, direction) => {
-    const index = layers.findIndex((layer) => layer.id === layerId)
+  const moveFrame = (frameId, direction) => {
+    // Frame ordering - get all frames as array
+    const framesList = Object.values(shapes).filter(s => s.type === 'frame')
+    const index = framesList.findIndex(f => f.id === frameId)
     if (index < 0) return
+
     const target = index + direction
-    if (target < 0 || target >= layers.length) return
-    const next = [...layers]
-    const [removed] = next.splice(index, 1)
-    next.splice(target, 0, removed)
-    pushUndoState(next)
+    if (target < 0 || target >= framesList.length) return
+
+    // For now, this is a no-op since we don't have frame ordering in flat map
+    // Could add a `order` property to frames if needed
   }
 
   const handleToolbarButton = (toolId) => {
+    // Check if this is a subtool selection (e.g., 'shape-rect', 'zoom-in', etc.)
+    for (const [parentTool, subtools] of Object.entries(TOOL_SUBMENUS)) {
+      if (subtools.some(sub => sub.id === toolId)) {
+        setDropdownState(dropdownDefaults) // Close dropdown immediately
+        handleToolOption(parentTool, toolId)
+        return
+      }
+    }
+
     setActiveTool(toolId)
     if (TOOL_SUBMENUS[toolId]) {
       setDropdownState(dropdownDefaults)
@@ -372,9 +600,18 @@ const KolEditor = () => {
   const handleStagePointerDown = (e) => {
     const stage = e.target.getStage()
     const pointer = stage.getPointerPosition()
+
     if (pendingInsert?.type === 'shape') {
-      const layerId = ensureLayerForObject()
-      setDragDraft({ layerId, kind: 'shape', shapeType: pendingInsert.shapeType, start: pointer, current: pointer, shift: e.evt?.shiftKey })
+      // Allow shapes on infinite canvas (frameId = null) or get selected frame
+      const frameId = selectedFrame?.id ?? null
+      setDragDraft({ frameId, kind: 'shape', shapeType: pendingInsert.shapeType, start: pointer, current: pointer, shift: e.evt?.shiftKey })
+      return
+    }
+
+    if (activeTool === 'frame') {
+      console.log('Frame tool active, starting drag at', pointer)
+      // Start dragging to create a new frame
+      setDragDraft({ kind: 'frame', start: pointer, current: pointer, shift: e.evt?.shiftKey })
       return
     }
 
@@ -384,25 +621,33 @@ const KolEditor = () => {
     }
 
     if (activeTool === 'select' && e.target === stage) {
-      const { x, y } = stage.getPointerPosition()
-      const withinX = x >= artboardPosition.x && x <= artboardPosition.x + canvasSize.width
-      const withinY = y >= artboardPosition.y && y <= artboardPosition.y + canvasSize.height
-      if (!withinX || !withinY) {
-        setSelectedObjectId(null)
-        return
-      }
-      setSelectedObjectId(null)
+      // Clicked on empty stage - deselect everything
+      setSelectedShapeId(null)
+      setSelectedShapeIds([])
     }
   }
 
-  const handleArtboardBackgroundClick = (e) => {
-    if (activeTool !== 'select') return
+  const handleArtboardBackgroundClick = (e, frameId) => {
+    // Only handle this for select tool - other tools need to pass through to stage
+    if (activeTool !== 'select') {
+      // Don't stop propagation - let stage handle it (for drawing tools, frame tool, etc.)
+      return
+    }
+
+    // If holding Cmd/Ctrl, "click through" the frame background
+    if (e.evt?.metaKey || e.evt?.ctrlKey) {
+      // Don't stop propagation - let it bubble to shapes below
+      return
+    }
+
     e.cancelBubble = true
-    setSelectedObjectId(null)
+    // Clicked on frame background - select the frame itself
+    setSelectedShapeId(frameId)
+    setSelectedShapeIds([])
   }
 
   const handleStagePointerMove = (e) => {
-    if (dragDraft?.kind === 'shape') {
+    if (dragDraft?.kind === 'shape' || dragDraft?.kind === 'frame') {
       const pointer = e.target.getStage().getPointerPosition()
       setDragDraft((prev) => (prev ? { ...prev, current: pointer, shift: e.evt?.shiftKey } : prev))
     }
@@ -410,7 +655,7 @@ const KolEditor = () => {
 
   const finalizeShapeDraft = () => {
     if (!dragDraft) return
-    const { start, current, shift, shapeType, layerId } = dragDraft
+    const { start, current, shift, shapeType, frameId } = dragDraft
     const width = Math.abs(current.x - start.x)
     const height = Math.abs(current.y - start.y)
     if (width < 2 && height < 2) {
@@ -424,39 +669,86 @@ const KolEditor = () => {
       finalWidth = size
       finalHeight = size
     }
-    const frame = {
+    const position = {
       x: Math.min(start.x, current.x),
       y: Math.min(start.y, current.y),
       width: finalWidth,
       height: finalHeight,
       rotation: 0,
     }
-    const object = createObject(shapeType, { frame })
-    appendObjectToLayer(layerId, object)
+    const shape = createShape(shapeType, { position, frameId })
+    addShapeToFrame(frameId, shape)
     setDragDraft(null)
   }
 
   const handleStagePointerUp = () => {
     if (dragDraft?.kind === 'shape') finalizeShapeDraft()
+    if (dragDraft?.kind === 'frame') finalizeFrameDraft()
   }
 
-  const normalizePosition = (type, frame, node) => {
+  const finalizeFrameDraft = () => {
+    if (!dragDraft) return
+    const { start, current, shift } = dragDraft
+    const width = Math.abs(current.x - start.x)
+    const height = Math.abs(current.y - start.y)
+    if (width < 10 && height < 10) {
+      setDragDraft(null)
+      return
+    }
+    let finalWidth = width
+    let finalHeight = height
+    if (shift) {
+      const size = Math.max(width, height)
+      finalWidth = size
+      finalHeight = size
+    }
+
+    const index = nextFrameIndexRef.current++
+    const frameId = `frame-${index}`
+    const newFrame = createFrameShape(index, {
+      id: frameId,
+      x: Math.min(start.x, current.x),
+      y: Math.min(start.y, current.y),
+      width: finalWidth,
+      height: finalHeight,
+    })
+
+    pushUndoState({
+      ...shapes,
+      [frameId]: newFrame
+    })
+    setSelectedShapeId(frameId)
+    ensureFrameExpanded(frameId)
+    setDragDraft(null)
+    setActiveTool('select') // Return to select tool after creating frame
+  }
+
+  const normalizePosition = (type, width, height, node) => {
     if (['rect', 'text'].includes(type)) return { x: node.x(), y: node.y() }
-    const width = frame.width
-    const height = frame.height
     return { x: node.x() - width / 2, y: node.y() - height / 2 }
   }
 
-  const handleObjectDragStart = (layerId, object, event) => {
+  const handleObjectDragStart = (frameId, shape, event) => {
     if (event.evt?.altKey) {
       event.target.stopDrag()
-      const clone = { ...object, id: `object-${nextObjectIdRef.current++}`, name: `${object.name} copy` }
-      pushUndoState(
-        layers.map((layer) => (layer.id === layerId ? { ...layer, objects: [...layer.objects, clone] } : layer)),
-      )
-      setSelectedLayerId(layerId)
-      setSelectedObjectId(clone.id)
-      ensureLayerExpanded(layerId)
+      const clone = {
+        ...shape,
+        id: `shape-${nextShapeIdRef.current++}`,
+        name: `${shape.name} copy`,
+        frameId,
+        parentId: frameId
+      }
+      const frame = shapes[frameId]
+      pushUndoState({
+        ...shapes,
+        [frameId]: {
+          ...frame,
+          children: [...frame.children, clone.id]
+        },
+        [clone.id]: clone
+      })
+      setSelectedShapeId(clone.id)
+      ensureFrameExpanded(frameId)
       cloneDragRef.current = clone.id
       requestAnimationFrame(() => {
         const clonedNode = nodeRefs.current.get(clone.id)
@@ -465,19 +757,44 @@ const KolEditor = () => {
     }
   }
 
-  const handleObjectDragEnd = (layerId, objectId, type, node, frame) => {
-    if (cloneDragRef.current && cloneDragRef.current === objectId) cloneDragRef.current = null
-    const position = normalizePosition(type, frame, node)
-    updateObjectFrame(layerId, objectId, position)
+  const handleObjectDragEnd = (frameId, shapeId, type, node) => {
+    if (cloneDragRef.current && cloneDragRef.current === shapeId) cloneDragRef.current = null
+    const shape = shapes[shapeId]
+    if (!shape) return
+
+    // If multiple shapes are selected and this is one of them, move all of them
+    if (selectedShapeIds.length > 1 && selectedShapeIds.includes(shapeId)) {
+      const dx = node.x() - shape.x
+      const dy = node.y() - shape.y
+
+      const newShapes = { ...shapes }
+      selectedShapeIds.forEach(id => {
+        const s = shapes[id]
+        if (s && s.type !== 'frame') {
+          newShapes[id] = {
+            ...s,
+            x: s.x + dx,
+            y: s.y + dy
+          }
+        }
+      })
+
+      pushUndoState(newShapes)
+      return
+    }
+
+    // Single shape drag
+    const position = normalizePosition(type, shape.width, shape.height, node)
+    updateShapePosition(shapeId, position)
   }
 
-  const handleObjectTransformEnd = (layerId, objectId, type, node) => {
+  const handleObjectTransformEnd = (frameId, shapeId, type, node) => {
     const width = Math.max(10, node.width() * node.scaleX())
     const height = Math.max(10, node.height() * node.scaleY())
     node.scaleX(1)
     node.scaleY(1)
-    const position = normalizePosition(type, { width, height }, node)
-    updateObjectFrame(layerId, objectId, {
+    const position = normalizePosition(type, width, height, node)
+    updateShapePosition(shapeId, {
       ...position,
       width,
       height,
@@ -486,34 +803,33 @@ const KolEditor = () => {
   }
 
   const handlePositionInput = (prop, value) => {
-    if (!selectedLayer || !selectedObject) return
+    if (!selectedObject) return
     const numeric = prop === 'rotation' ? Number(value) : Math.max(0, Number(value))
-    updateObjectFrame(selectedLayer.id, selectedObject.id, { [prop]: numeric })
+    updateShapePosition(selectedObject.id, { [prop]: numeric })
   }
 
   const handleColorChange = (hex) => {
-    if (!selectedLayer || !selectedObject) return
-    updateObject(selectedLayer.id, selectedObject.id, (obj) => ({ ...obj, color: hex }))
+    if (!selectedObject) return
+    updateShape(selectedObject.id, { color: hex })
   }
 
   const handleOpacityChange = (percent) => {
-    if (!selectedLayer || !selectedObject) return
+    if (!selectedObject) return
     const opacity = clamp(Number(percent), 0, 100) / 100
-    updateObject(selectedLayer.id, selectedObject.id, (obj) => ({ ...obj, opacity }))
+    updateShape(selectedObject.id, { opacity })
   }
 
   const applyCropRatio = (ratio) => {
-    if (!selectedLayer || !selectedObject) return
-    const { frame } = selectedObject
-    const cx = frame.x + frame.width / 2
-    const cy = frame.y + frame.height / 2
-    let width = frame.width
-    let height = frame.height
+    if (!selectedObject) return
+    const cx = selectedObject.x + selectedObject.width / 2
+    const cy = selectedObject.y + selectedObject.height / 2
+    let width = selectedObject.width
+    let height = selectedObject.height
     if (ratio !== 'free') {
-      width = Math.max(40, frame.height * ratio)
+      width = Math.max(40, selectedObject.height * ratio)
       height = Math.max(40, width / ratio)
     }
-    updateObjectFrame(selectedLayer.id, selectedObject.id, {
+    updateShapePosition(selectedObject.id, {
       width,
       height,
       x: cx - width / 2,
@@ -522,27 +838,27 @@ const KolEditor = () => {
   }
 
   const applyRotation = (delta) => {
-    if (!selectedLayer || !selectedObject) return
-    updateObjectFrame(selectedLayer.id, selectedObject.id, {
-      rotation: selectedObject.frame.rotation + delta,
+    if (!selectedObject) return
+    updateShapePosition(selectedObject.id, {
+      rotation: selectedObject.rotation + delta,
     })
   }
 
   const applyFlip = (axis) => {
-    if (!selectedLayer || !selectedObject) return
+    if (!selectedObject) return
     if (axis === 'x') {
-      updateObjectFrame(selectedLayer.id, selectedObject.id, {
-        rotation: (360 - selectedObject.frame.rotation) % 360,
+      updateShapePosition(selectedObject.id, {
+        rotation: (360 - selectedObject.rotation) % 360,
       })
     } else {
-      updateObjectFrame(selectedLayer.id, selectedObject.id, {
-        rotation: (180 - selectedObject.frame.rotation) % 360,
+      updateShapePosition(selectedObject.id, {
+        rotation: (180 - selectedObject.rotation) % 360,
       })
     }
   }
 
   const applyFilter = (optionId) => {
-    if (!selectedLayer || !selectedObject) return
+    if (!selectedObject) return
     const hsb = hexToHsb(selectedObject.color)
     if (optionId === 'filter-grayscale') hsb.s = 0
     if (optionId === 'filter-brightness') hsb.b = clamp(hsb.b + 10, 0, 100)
@@ -550,7 +866,7 @@ const KolEditor = () => {
     if (optionId === 'filter-hue') hsb.h = (hsb.h + 25) % 360
     if (optionId === 'filter-dim') hsb.b = clamp(hsb.b - 10, 0, 100)
     const hex = hsbToHex(hsb.h, hsb.s, hsb.b)
-    updateObject(selectedLayer.id, selectedObject.id, (obj) => ({ ...obj, color: hex }))
+    updateShape(selectedObject.id, { color: hex })
     setInspectorFilter({ type: optionId, amount: 50 })
   }
 
@@ -562,41 +878,48 @@ const KolEditor = () => {
 
   const handleDrawOption = (optionId) => {
     if (optionId === 'draw-eraser') {
-      if (selectedLayer && selectedObject) handleDeleteObject(selectedLayer.id, selectedObject.id)
+      if (selectedObject) handleDeleteShape(selectedObject.id)
       return
     }
-    const object =
+    const frameId = ensureFrameForShape()
+    const position = getDefaultShapePosition()
+    const shape =
       optionId === 'draw-line'
-        ? createObject('line', {
+        ? createShape('line', {
             name: 'Line',
-            frame: { ...getDefaultFrame(), height: 2 },
+            position: { ...position, height: 2 },
             meta: { points: [0, 0, 160, 0] },
+            frameId
           })
-        : createObject('scribble', {
+        : createShape('scribble', {
             name: 'Scribble',
-            frame: { ...getDefaultFrame(), height: 2 },
+            position: { ...position, height: 2 },
             meta: { points: [0, 0, 30, -20, 80, 10, 120, -10, 170, 0] },
+            frameId
           })
-    appendObjectToLayer(ensureLayerForObject(), object)
+    addShapeToFrame(frameId, shape)
   }
 
   const handleTextOption = (optionId) => {
     if (optionId === 'text-add') {
-      const object = createObject('text', {
-        frame: { ...getDefaultFrame(), height: 60, width: 240 },
+      const frameId = ensureFrameForShape()
+      const position = getDefaultShapePosition()
+      const shape = createShape('text', {
+        position: { ...position, height: 60, width: 240 },
+        frameId
       })
-      appendObjectToLayer(ensureLayerForObject(), object)
+      addShapeToFrame(frameId, shape)
       return
     }
-    if (!selectedLayer || !selectedObject || selectedObject.type !== 'text') return
+    if (!selectedObject || selectedObject.type !== 'text') return
     if (optionId === 'text-fonts') {
       const fonts = ['JetBrains Mono, monospace', 'Space Mono, monospace', 'IBM Plex Mono, monospace']
       const currentIndex = fonts.indexOf(selectedObject.fontFamily)
       const nextFont = fonts[(currentIndex + 1) % fonts.length]
-      updateObject(selectedLayer.id, selectedObject.id, (obj) => ({ ...obj, fontFamily: nextFont }))
+      updateShape(selectedObject.id, { fontFamily: nextFont })
     }
     if (optionId === 'text-styles') {
-      updateObject(selectedLayer.id, selectedObject.id, (obj) => ({ ...obj, fontStyle: obj.fontStyle === 'bold' ? 'normal' : 'bold' }))
+      updateShape(selectedObject.id, { fontStyle: selectedObject.fontStyle === 'bold' ? 'normal' : 'bold' })
     }
   }
 
@@ -615,7 +938,6 @@ const KolEditor = () => {
       if (optionId === 'crop-4-3') applyCropRatio(4 / 3)
       if (optionId === 'crop-16-9') applyCropRatio(16 / 9)
     }
-    setDropdownState(dropdownDefaults)
   }
 
   const handleFilterSelect = (optionId) => {
@@ -624,76 +946,71 @@ const KolEditor = () => {
   }
 
   const handleClearDocument = () => {
-    pushUndoState([])
-    setSelectedLayerId(null)
-    setSelectedObjectId(null)
-    setExpandedLayers(new Set())
+    pushUndoState({})
+    setSelectedShapeId(null)
+    setExpandedShapes(new Set())
     setPendingInsert(null)
     setDragDraft(null)
   }
 
   const handleCanvasDialogSave = () => {
-    setCanvasSize({ width: canvasDialog.width, height: canvasDialog.height })
-    updateSelectedCanvas(() => ({
-      frame: {
-        x: artboardPosition.x,
-        y: artboardPosition.y,
-        width: canvasDialog.width,
-        height: canvasDialog.height,
-      },
-    }))
+    if (!selectedFrame) return
+    updateShapePosition(selectedFrame.id, {
+      width: canvasDialog.width,
+      height: canvasDialog.height,
+    })
     setCanvasDialog((prev) => ({ ...prev, open: false }))
   }
 
-  const renderObject = (layerId, obj) => {
+  const renderObject = (frameId, shape) => {
     const commonProps = {
       ref: (node) => {
-        if (node) nodeRefs.current.set(obj.id, node)
-        else nodeRefs.current.delete(obj.id)
+        if (node) nodeRefs.current.set(shape.id, node)
+        else nodeRefs.current.delete(shape.id)
       },
-      rotation: obj.frame.rotation,
+      rotation: shape.rotation,
       draggable: true,
-      opacity: obj.opacity,
-      onClick: () => handleCanvasSelection(layerId, obj.id),
-      onTap: () => handleCanvasSelection(layerId, obj.id),
-      onDragStart: (e) => handleObjectDragStart(layerId, obj, e),
-      onDragEnd: (e) => handleObjectDragEnd(layerId, obj.id, obj.type, e.target, obj.frame),
-      onTransformEnd: (e) => handleObjectTransformEnd(layerId, obj.id, obj.type, e.target),
+      opacity: shape.opacity,
+      onClick: (e) => handleCanvasSelection(frameId, shape.id, e),
+      onTap: (e) => handleCanvasSelection(frameId, shape.id, e),
+      onDragStart: (e) => handleObjectDragStart(frameId, shape, e),
+      onDragEnd: (e) => handleObjectDragEnd(frameId, shape.id, shape.type, e.target),
+      onTransformEnd: (e) => handleObjectTransformEnd(frameId, shape.id, shape.type, e.target),
       onTransform: (e) => e.target.getLayer().batchDraw(),
     }
 
-    if (obj.type === 'rect') {
-      return <Rect key={obj.id} {...commonProps} x={obj.frame.x} y={obj.frame.y} width={obj.frame.width} height={obj.frame.height} fill={obj.color} />
+    if (shape.type === 'rect') {
+      return <Rect key={shape.id} {...commonProps} x={shape.x} y={shape.y} width={shape.width} height={shape.height} fill={shape.color} />
     }
-    if (obj.type === 'circle') {
-      const radius = Math.min(obj.frame.width, obj.frame.height) / 2
-      return <Circle key={obj.id} {...commonProps} x={obj.frame.x + obj.frame.width / 2} y={obj.frame.y + obj.frame.height / 2} radius={radius} fill={obj.color} />
+    if (shape.type === 'circle') {
+      const radius = Math.min(shape.width, shape.height) / 2
+      return <Circle key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} radius={radius} fill={shape.color} />
     }
-    if (obj.type === 'triangle' || obj.type === 'polygon') {
-      const sides = obj.type === 'triangle' ? 3 : 6
-      const radius = Math.min(obj.frame.width, obj.frame.height) / 2
-      return <RegularPolygon key={obj.id} {...commonProps} x={obj.frame.x + obj.frame.width / 2} y={obj.frame.y + obj.frame.height / 2} sides={sides} radius={radius} fill={obj.color} />
+    if (shape.type === 'triangle' || shape.type === 'polygon') {
+      const sides = shape.type === 'triangle' ? 3 : 6
+      const radius = Math.min(shape.width, shape.height) / 2
+      return <RegularPolygon key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} sides={sides} radius={radius} fill={shape.color} />
     }
-    if (obj.type === 'star') {
-      const outer = Math.min(obj.frame.width, obj.frame.height) / 2
-      return <Star key={obj.id} {...commonProps} x={obj.frame.x + obj.frame.width / 2} y={obj.frame.y + obj.frame.height / 2} numPoints={5} innerRadius={outer / 2.5} outerRadius={outer} fill={obj.color} />
+    if (shape.type === 'star') {
+      const outer = Math.min(shape.width, shape.height) / 2
+      return <Star key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} numPoints={5} innerRadius={outer / 2.5} outerRadius={outer} fill={shape.color} />
     }
-    if (obj.type === 'line' || obj.type === 'scribble') {
-      return <Line key={obj.id} {...commonProps} x={obj.frame.x} y={obj.frame.y} points={obj.meta.points} stroke={obj.color} strokeWidth={obj.type === 'line' ? 4 : 3} lineCap="round" lineJoin="round" />
+    if (shape.type === 'line' || shape.type === 'scribble') {
+      return <Line key={shape.id} {...commonProps} x={shape.x} y={shape.y} points={shape.meta?.points ?? []} stroke={shape.color} strokeWidth={shape.type === 'line' ? 4 : 3} lineCap="round" lineJoin="round" />
     }
-    if (obj.type === 'text') {
+    if (shape.type === 'text') {
       return (
         <KonvaText
-          key={obj.id}
+          key={shape.id}
           {...commonProps}
-          text={obj.text}
-          x={obj.frame.x}
-          y={obj.frame.y}
-          width={obj.frame.width}
-          fill={obj.color}
-          fontSize={obj.fontSize}
-          fontFamily={obj.fontFamily}
-          fontStyle={obj.fontStyle}
+          text={shape.text}
+          x={shape.x}
+          y={shape.y}
+          width={shape.width}
+          fill={shape.color}
+          fontSize={shape.fontSize}
+          fontFamily={shape.fontFamily}
+          fontStyle={shape.fontStyle}
           onDblClick={(e) => {
             const stage = stageRef.current
             const textNode = e.target
@@ -717,7 +1034,7 @@ const KolEditor = () => {
             document.body.appendChild(textarea)
             textarea.focus()
             const finish = () => {
-              updateObject(selectedLayer.id, selectedObject.id, (obj) => ({ ...obj, text: textarea.value }))
+              updateShape(shape.id, { text: textarea.value })
               document.body.removeChild(textarea)
               textNode.show()
             }
@@ -736,42 +1053,55 @@ const KolEditor = () => {
     return null
   }
 
-  const handleCanvasSelection = (layerId, objectId) => {
-    setSelectedLayerId(layerId)
-    setSelectedObjectId(objectId)
+  const handleCanvasSelection = (frameId, shapeId, event) => {
+    // Shift+click for multi-select
+    if (event?.evt?.shiftKey) {
+      if (selectedShapeIds.length > 0) {
+        // Already in multi-select mode
+        if (selectedShapeIds.includes(shapeId)) {
+          // Remove from selection
+          setSelectedShapeIds(prev => prev.filter(id => id !== shapeId))
+        } else {
+          // Add to selection
+          setSelectedShapeIds(prev => [...prev, shapeId])
+        }
+      } else if (selectedShapeId) {
+        // Start multi-select with current and new shape
+        setSelectedShapeIds([selectedShapeId, shapeId])
+        setSelectedShapeId(null)
+      } else {
+        // First selection
+        setSelectedShapeId(shapeId)
+      }
+    } else {
+      // Normal click - single select
+      setSelectedShapeId(shapeId)
+      setSelectedShapeIds([])
+    }
   }
 
-  const renderDraft = () => {
-    if (!dragDraft || dragDraft.kind !== 'shape') return null
-    const { start, current, shift } = dragDraft
-    let width = Math.abs(current.x - start.x)
-    let height = Math.abs(current.y - start.y)
-    if (shift) {
-      const size = Math.max(width, height)
-      width = size
-      height = size
-    }
-    const x = Math.min(start.x, current.x)
-    const y = Math.min(start.y, current.y)
-    return <Rect x={x} y={y} width={width} height={height} fill="rgba(14,165,233,0.2)" stroke="#38bdf8" strokeWidth={1} dash={[6, 4]} />
-  }
 
   const renderDraftGrid = () => {
-    if (!layoutSettings.showGrid) return null
+    if (!layoutSettings.showGrid || !selectedFrame) return null
     const columns = layoutSettings.columns
     const rows = layoutSettings.rows
     const gutter = layoutSettings.gutter
-    const colWidth = (canvasSize.width - gutter * (columns - 1)) / columns
-    const rowHeight = (canvasSize.height - gutter * (rows - 1)) / rows
+    const colWidth = (selectedFrame.width - gutter * (columns - 1)) / columns
+    const rowHeight = (selectedFrame.height - gutter * (rows - 1)) / rows
     const elements = []
+
+    // Offset grid to frame position
+    const frameX = selectedFrame.x
+    const frameY = selectedFrame.y
+
     for (let c = 0; c < columns; c += 1) {
       elements.push(
         <Rect
           key={`col-${c}`}
-          x={c * (colWidth + gutter)}
-          y={0}
+          x={frameX + c * (colWidth + gutter)}
+          y={frameY}
           width={colWidth}
-          height={canvasSize.height}
+          height={selectedFrame.height}
           stroke="rgba(255,255,255,0.1)"
           strokeWidth={1}
         />,
@@ -781,9 +1111,9 @@ const KolEditor = () => {
       elements.push(
         <Rect
           key={`row-${r}`}
-          x={0}
-          y={r * (rowHeight + gutter)}
-          width={canvasSize.width}
+          x={frameX}
+          y={frameY + r * (rowHeight + gutter)}
+          width={selectedFrame.width}
           height={rowHeight}
           stroke="rgba(255,255,255,0.1)"
           strokeWidth={1}
@@ -797,23 +1127,20 @@ const KolEditor = () => {
 
   const beginArtboardDrag = (mode, options = {}) => (event) => {
     event.preventDefault()
+    if (!selectedFrame) return
+
     dragStateRef.current = {
       mode,
       directionX: options.directionX ?? 'center',
       directionY: options.directionY ?? 'center',
       startX: event.clientX,
       startY: event.clientY,
-      originalPosition: artboardPosition,
-      originalSize: canvasSize,
+      originalPosition: { x: selectedFrame.x, y: selectedFrame.y },
+      originalSize: { width: selectedFrame.width, height: selectedFrame.height },
+      frameId: selectedFrame.id
     }
     window.addEventListener('pointermove', handleArtboardPointerMove)
     window.addEventListener('pointerup', endArtboardDrag)
-  }
-
-  const updateSelectedCanvas = (updater) => {
-    setLayers((prev) =>
-      prev.map((layer) => (layer.id === selectedLayerId ? { ...layer, ...updater(layer) } : layer)),
-    )
   }
 
   const handleArtboardPointerMove = (event) => {
@@ -821,20 +1148,16 @@ const KolEditor = () => {
     if (!drag) return
     const dx = event.clientX - drag.startX
     const dy = event.clientY - drag.startY
+
     if (drag.mode === 'move') {
-      setArtboardPosition({
-        x: Math.max(0, drag.originalPosition.x + dx),
-        y: Math.max(0, drag.originalPosition.y + dy),
+      const newX = Math.max(0, drag.originalPosition.x + dx)
+      const newY = Math.max(0, drag.originalPosition.y + dy)
+      updateShapePosition(drag.frameId, {
+        x: newX,
+        y: newY
       })
-      updateSelectedCanvas(() => ({
-        frame: {
-          x: Math.max(0, drag.originalPosition.x + dx),
-          y: Math.max(0, drag.originalPosition.y + dy),
-          width: drag.originalSize.width,
-          height: drag.originalSize.height,
-        },
-      }))
     }
+
     if (drag.mode === 'resize') {
       let newX = drag.originalPosition.x
       let newY = drag.originalPosition.y
@@ -859,16 +1182,12 @@ const KolEditor = () => {
         newHeight = Math.max(200, drag.originalSize.height + dy)
       }
 
-      setArtboardPosition({ x: newX, y: newY })
-      setCanvasSize({ width: newWidth, height: newHeight })
-      updateSelectedCanvas(() => ({
-        frame: {
-          x: newX,
-          y: newY,
-          width: newWidth,
-          height: newHeight,
-        },
-      }))
+      updateShapePosition(drag.frameId, {
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight
+      })
     }
   }
 
@@ -896,36 +1215,41 @@ const KolEditor = () => {
 
       <div className="flex-1 flex overflow-hidden">
         <LayersSidebar
-          layers={layers}
-          selectedLayerId={selectedLayerId}
-          selectedObjectId={selectedObjectId}
-          expandedLayers={expandedLayers}
-          onLayerSelect={(layerId, objectId) => {
-            setSelectedLayerId(layerId)
-            setSelectedObjectId(objectId || null)
-            ensureLayerExpanded(layerId)
+          layers={frames}
+          infiniteCanvasShapes={infiniteCanvasShapes}
+          selectedLayerId={selectedFrame?.id ?? null}
+          selectedObjectId={selectedObject?.id ?? null}
+          expandedLayers={expandedShapes}
+          onLayerSelect={(frameId, shapeId) => {
+            if (frameId === null && shapeId === null) {
+              // Deselect everything
+              setSelectedShapeId(null)
+              setSelectedShapeIds([])
+            } else {
+              setSelectedShapeId(shapeId || frameId)
+              if (frameId) ensureFrameExpanded(frameId)
+            }
           }}
-          onObjectSelect={(layerId, objectId) => {
-            setSelectedLayerId(layerId)
-            setSelectedObjectId(objectId)
+          onObjectSelect={(frameId, shapeId) => {
+            setSelectedShapeId(shapeId)
           }}
-          onToggleExpand={(layerId) => {
-            setExpandedLayers((prev) => {
+          onToggleExpand={(frameId) => {
+            setExpandedShapes((prev) => {
               const next = new Set(prev)
-              if (next.has(layerId)) next.delete(layerId)
-              else next.add(layerId)
+              if (next.has(frameId)) next.delete(frameId)
+              else next.add(frameId)
               return next
             })
           }}
-          onToggleLayerVisibility={toggleLayerVisibility}
-          onToggleObjectVisibility={toggleObjectVisibility}
-          onMoveLayer={moveLayer}
-          onDeleteLayer={handleDeleteLayer}
-          onDeleteObject={handleDeleteObject}
-          onAddLayer={handleAddLayer}
+          onToggleLayerVisibility={toggleShapeVisibility}
+          onToggleObjectVisibility={(frameId, shapeId) => toggleShapeVisibility(shapeId)}
+          onMoveLayer={moveFrame}
+          onDeleteLayer={handleDeleteFrame}
+          onDeleteObject={handleDeleteShape}
+          onAddLayer={handleAddFrame}
         />
 
-        <div className="flex-1 flex flex-col bg-zinc-950 relative min-h-0">
+        <div className="flex-1 flex flex-col bg-zinc-950 relative min-h-0 overflow-hidden">
           <div className="toolbar-container">
             <Toolbar
               activeTool={activeTool}
@@ -945,15 +1269,18 @@ const KolEditor = () => {
             artboardPosition={artboardPosition}
             zoomLevel={zoomLevel}
             stagePosition={stagePosition}
-            selectedLayer={selectedLayer}
-            layers={layers}
-            selectedObjectId={selectedObjectId}
+            selectedLayer={selectedFrame}
+            layers={frames}
+            shapes={shapes}
+            selectedObjectId={selectedObject?.id ?? null}
+            activeTool={activeTool}
             stageCursor={stageCursor}
             stageRef={stageRef}
             transformerRef={transformerRef}
             nodeRefs={nodeRefs}
             dragDraft={dragDraft}
             layoutSettings={layoutSettings}
+            canvasBackground={canvasBackground}
             onStagePointerDown={handleStagePointerDown}
             onStagePointerMove={handleStagePointerMove}
             onStagePointerUp={handleStagePointerUp}
@@ -964,32 +1291,30 @@ const KolEditor = () => {
             onObjectTransformEnd={handleObjectTransformEnd}
             onBeginArtboardDrag={beginArtboardDrag}
             renderObject={renderObject}
-            renderDraft={renderDraft}
             renderDraftGrid={renderDraftGrid}
           />
         </div>
 
         <Inspector
-          selectedLayer={selectedLayer}
+          selectedLayer={selectedFrame}
           selectedObject={selectedObject}
-          onLayerNameChange={(name) =>
-            setLayers((prev) =>
-              prev.map((layer) => (layer.id === selectedLayer.id ? { ...layer, name } : layer)),
-            )
-          }
-          onLayerBackgroundChange={(background) =>
-            setLayers((prev) =>
-              prev.map((layer) =>
-                layer.id === selectedLayer.id ? { ...layer, background } : layer,
-              ),
-            )
-          }
+          canvasBackground={canvasBackground}
+          onLayerNameChange={(name) => {
+            if (selectedFrame) updateShape(selectedFrame.id, { name })
+          }}
+          onLayerBackgroundChange={(background) => {
+            if (selectedFrame) {
+              updateShape(selectedFrame.id, { background })
+            } else {
+              setCanvasBackground(background)
+            }
+          }}
           onObjectPropertyChange={handlePositionInput}
           onObjectColorChange={handleColorChange}
           onObjectOpacityChange={handleOpacityChange}
-          onObjectTextChange={(prop, value) =>
-            updateObject(selectedLayer.id, selectedObject.id, (obj) => ({ ...obj, [prop]: value }))
-          }
+          onObjectTextChange={(prop, value) => {
+            if (selectedObject) updateShape(selectedObject.id, { [prop]: value })
+          }}
           inspectorFilter={inspectorFilter}
           setInspectorFilter={setInspectorFilter}
         />

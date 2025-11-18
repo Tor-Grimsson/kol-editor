@@ -59,8 +59,12 @@ const ComponentShowcase = () => {
                 <p className="text-xs text-zinc-500 uppercase mb-2">Icon Buttons (square)</p>
                 <div className="flex gap-3 items-center">
                   <Button variant="primary" square title="Add">+</Button>
-                  <Button variant="default" square title="Delete">�</Button>
-                  <Button variant="ghost" square title="Settings">�</Button>
+                  <Button variant="default" square title="Delete">
+                    <Icon name="trash" size={16} />
+                  </Button>
+                  <Button variant="ghost" square title="Settings">
+                    <Icon name="caret-down" size={16} />
+                  </Button>
                   <Button variant="primary" square>
                     <Icon name="star" size={16} />
                   </Button>

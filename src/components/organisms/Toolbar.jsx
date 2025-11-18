@@ -1,40 +1,30 @@
 import { useRef } from 'react'
-import ToolbarButton from '../molecules/ToolbarButton'
+import ToolButton from '../molecules/ToolButton'
 import Separator from '../atoms/Separator'
-import Icon from '../icons/Icon'
 import { TOOLBAR_LAYOUT, TOOL_SUBMENUS, FILTER_OPTIONS } from '../../constants/editor'
-import PointerIcon from '../../assets/icons/custom/pointer.svg'
-import ZoomIcon from '../../assets/icons/tui/zoom.svg'
-import CropIcon from '../../assets/icons/tui/crop.svg'
-import FlipXIcon from '../../assets/icons/tui/flip-x.svg'
-import FlipYIcon from '../../assets/icons/tui/flip-y.svg'
-import RotateLeftIcon from '../../assets/icons/tui/rotate-left.svg'
-import RotateRightIcon from '../../assets/icons/tui/rotate-right.svg'
-import DrawIcon from '../../assets/icons/tui/draw.svg'
-import ShapeIcon from '../../assets/icons/tui/shape.svg'
-import TextIcon from '../../assets/icons/tui/text.svg'
 
+// Icon map using tools-name folder structure
 const iconMap = {
-  select: PointerIcon,
-  zoom: ZoomIcon,
-  crop: CropIcon,
-  flipX: FlipXIcon,
-  flipY: FlipYIcon,
-  rotateLeft: RotateLeftIcon,
-  rotateRight: RotateRightIcon,
-  draw: DrawIcon,
-  shape: ShapeIcon,
-  text: TextIcon
+  select: { folder: 'tools-name/other', name: 'pointer-selector' },
+  frame: { folder: 'tools-name/shape-align', name: 'square' },
+  zoom: { folder: 'tools-name/other', name: 'zoom-magnify' },
+  crop: { folder: 'tools-name/other', name: 'crop' },
+  flipX: { folder: 'tools-name/shape-align', name: 'flip-x' },
+  flipY: { folder: 'tools-name/shape-align', name: 'flip-y' },
+  rotateLeft: { folder: 'tools-name/other', name: 'turn-90-left' },
+  rotateRight: { folder: 'tools-name/other', name: 'turn-90-right' },
+  draw: { folder: 'tools-name/shape-align', name: 'pencil' },
+  shape: { folder: 'tools-name/shape-align', name: 'rectangle' },
+  text: { folder: 'tools-name/other', name: 'font=03' },
+  boolean: { folder: 'tools-name/shape-align', name: 'boolean-unite' }
 }
 
 const Toolbar = ({
   activeTool,
   dropdownState,
-  toolSelections,
   filterMenuOpen,
   onToolbarButton,
   onToggleDropdown,
-  onToolOption,
   onFilterSelect,
   setFilterMenuOpen
 }) => {
@@ -44,58 +34,34 @@ const Toolbar = ({
   const renderToolButton = (item) => {
     if (item.type === 'separator') return <Separator key={item.id} />
 
-    const hasDropdown = Boolean(item.dropdown && TOOL_SUBMENUS[item.id]?.length)
+    const subtools = TOOL_SUBMENUS[item.id]?.map(sub => ({
+      id: sub.id,
+      label: sub.label,
+      icon: sub.icon
+    })) || []
+
+    const tool = {
+      id: item.id,
+      label: item.label,
+      icon: iconMap[item.id],
+      subtools,
+      disabled: item.disabled
+    }
 
     return (
-      <ToolbarButton
+      <ToolButton
         key={item.id}
-        icon={iconMap[item.id]}
-        label={item.label}
-        active={activeTool === item.id}
-        hasDropdown={hasDropdown}
-        dropdownOpen={dropdownState.toolId === item.id}
-        onClick={() => onToolbarButton(item.id)}
-        onDropdownToggle={() => onToggleDropdown(item.id, toolbarButtonRefs, toolbarRef)}
-        buttonRef={(node) => {
-          if (node) toolbarButtonRefs.current.set(item.id, node)
-          else toolbarButtonRefs.current.delete(item.id)
+        tool={tool}
+        isActive={activeTool === item.id}
+        onSelect={(selectedTool) => {
+          // If a subtool was selected, use it, otherwise use the main tool
+          const toolId = selectedTool?.id || item.id
+          onToolbarButton(toolId)
         }}
+        onToggleDropdown={() => onToggleDropdown(item.id, toolbarButtonRefs, toolbarRef)}
+        showDropdown={dropdownState.toolId === item.id}
+        dropdownLeft={dropdownState.left}
       />
-    )
-  }
-
-  const renderToolOptionsPanel = () => {
-    if (!dropdownState.toolId) return null
-    const options = TOOL_SUBMENUS[dropdownState.toolId]
-    if (!options?.length) return null
-
-    return (
-      <div
-        className="absolute z-20 pointer-events-none"
-        style={{ top: 'calc(100% + 8px)', left: dropdownState.left, transform: 'translateX(-50%)' }}
-      >
-        <div className="flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900 px-2 py-1 shadow-xl pointer-events-auto">
-          {options.map((option) => {
-            const isActive = toolSelections[dropdownState.toolId] === option.id
-            const fallback = <span className="text-[10px] uppercase">{option.label[0]}</span>
-
-            return (
-              <button
-                key={option.id}
-                className={`w-8 h-8 rounded-full border flex items-center justify-center ${
-                  isActive
-                    ? 'bg-blue-600 border-blue-400 text-white'
-                    : 'bg-zinc-800 border-transparent text-zinc-300 hover:bg-zinc-700'
-                }`}
-                title={option.label}
-                onClick={() => onToolOption(dropdownState.toolId, option.id)}
-              >
-                {option.icon ? <Icon name={option.icon} size={16} fallback={fallback} /> : fallback}
-              </button>
-            )
-          })}
-        </div>
-      </div>
     )
   }
 
@@ -110,11 +76,9 @@ const Toolbar = ({
           }`}
           onClick={() => setFilterMenuOpen((prev) => !prev)}
         >
-          Filters ¾
+          Filters ï¿½
         </button>
       </div>
-
-      {renderToolOptionsPanel()}
 
       {filterMenuOpen && (
         <div className="absolute top-full right-4 mt-1 z-10 rounded border border-zinc-800 bg-zinc-900 shadow-lg min-w-[180px]">

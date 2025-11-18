@@ -1,3 +1,5 @@
+import Icon from '../icons/Icon'
+
 const LayerItem = ({
   layer,
   isSelected,
@@ -32,7 +34,7 @@ const LayerItem = ({
               }}
               className="w-4 h-4 text-zinc-400 hover:text-white"
             >
-              {isExpanded ? '¾' : '¸'}
+              <Icon name={isExpanded ? 'caret-down' : 'caret-right'} size={12} />
             </button>
           ) : (
             <span className="w-4" />
@@ -47,8 +49,9 @@ const LayerItem = ({
               onToggleVisibility()
             }}
             title={layer.visible ? 'Hide' : 'Show'}
+            className={layer.visible ? '' : 'opacity-40'}
           >
-            {layer.visible ? '=A' : '=«'}
+            <Icon name="visible2" size={14} />
           </button>
           <button
             onClick={(e) => {
@@ -56,8 +59,9 @@ const LayerItem = ({
               onMoveUp()
             }}
             disabled={!canMoveUp}
+            className="disabled:opacity-30"
           >
-            ‘
+            <Icon name="up-arrow" size={12} />
           </button>
           <button
             onClick={(e) => {
@@ -65,16 +69,18 @@ const LayerItem = ({
               onMoveDown()
             }}
             disabled={!canMoveDown}
+            className="disabled:opacity-30"
           >
-            “
+            <Icon name="down-arrow" size={12} />
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
               onDelete()
             }}
+            className="hover:text-red-400"
           >
-            =Ñ
+            <Icon name="trash" size={14} />
           </button>
         </div>
       </div>

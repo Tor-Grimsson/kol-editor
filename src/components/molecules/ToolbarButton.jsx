@@ -1,4 +1,5 @@
 import Button from '../atoms/Button'
+import Icon from '../icons/Icon'
 
 const ToolbarButton = ({
   icon,
@@ -32,7 +33,7 @@ const ToolbarButton = ({
           onClick={onDropdownToggle}
           title={`${label} options`}
         >
-          ¾
+          <Icon name="caret-down" size={12} />
         </button>
       )}
     </div>

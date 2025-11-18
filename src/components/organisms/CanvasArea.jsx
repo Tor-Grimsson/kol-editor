@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Stage, Layer as KonvaLayer, Rect, Circle, RegularPolygon, Star, Line, Text as KonvaText, Transformer } from 'react-konva'
 import CanvasHandle from '../molecules/CanvasHandle'
+import DraftPreview from '../canvas/DraftPreview'
 import { RULER_STEP } from '../../constants/editor'
 
 const CanvasArea = ({
@@ -10,13 +11,16 @@ const CanvasArea = ({
   stagePosition,
   selectedLayer,
   layers,
+  shapes,
   selectedObjectId,
+  activeTool,
   stageCursor,
   stageRef,
   transformerRef,
   nodeRefs,
   dragDraft,
   layoutSettings,
+  canvasBackground,
   onStagePointerDown,
   onStagePointerMove,
   onStagePointerUp,
@@ -27,7 +31,6 @@ const CanvasArea = ({
   onObjectTransformEnd,
   onBeginArtboardDrag,
   renderObject,
-  renderDraft,
   renderDraftGrid
 }) => {
   const horizontalMarks = useMemo(() => {
@@ -42,146 +45,139 @@ const CanvasArea = ({
     return marks
   }, [canvasSize.height])
 
-  const left = 16 + artboardPosition.x
-  const top = 16 + artboardPosition.y
+  // Convert Konva world coordinates to screen coordinates for HTML overlay handles
+  const worldToScreen = (worldX, worldY) => ({
+    x: worldX * zoomLevel + stagePosition.x,
+    y: worldY * zoomLevel + stagePosition.y
+  })
+
+  const left = artboardPosition.x
+  const top = artboardPosition.y
   const right = left + canvasSize.width
   const bottom = top + canvasSize.height
   const centerX = left + canvasSize.width / 2
   const centerY = top + canvasSize.height / 2
 
+  // Convert to screen coordinates
+  const screenTopLeft = worldToScreen(left, top)
+  const screenTopRight = worldToScreen(right, top)
+  const screenBottomLeft = worldToScreen(left, bottom)
+  const screenBottomRight = worldToScreen(right, bottom)
+  const screenTopCenter = worldToScreen(centerX, top)
+  const screenBottomCenter = worldToScreen(centerX, bottom)
+  const screenLeftCenter = worldToScreen(left, centerY)
+  const screenRightCenter = worldToScreen(right, centerY)
+  const screenCenter = worldToScreen(centerX, centerY)
+
   const handleSpecs = [
-    { id: 'corner-nw', x: left, y: top, cursor: 'nwse-resize', directionX: 'start', directionY: 'start', type: 'corner' },
-    { id: 'corner-ne', x: right, y: top, cursor: 'nesw-resize', directionX: 'end', directionY: 'start', type: 'corner' },
-    { id: 'corner-sw', x: left, y: bottom, cursor: 'nesw-resize', directionX: 'start', directionY: 'end', type: 'corner' },
-    { id: 'corner-se', x: right, y: bottom, cursor: 'nwse-resize', directionX: 'end', directionY: 'end', type: 'corner' },
-    { id: 'edge-top', x: centerX, y: top, cursor: 'ns-resize', directionX: 'center', directionY: 'start', type: 'edge' },
-    { id: 'edge-bottom', x: centerX, y: bottom, cursor: 'ns-resize', directionX: 'center', directionY: 'end', type: 'edge' },
-    { id: 'edge-left', x: left, y: centerY, cursor: 'ew-resize', directionX: 'start', directionY: 'center', type: 'edge' },
-    { id: 'edge-right', x: right, y: centerY, cursor: 'ew-resize', directionX: 'end', directionY: 'center', type: 'edge' },
-    { id: 'center', x: centerX, y: centerY, cursor: 'move', mode: 'move', type: 'center' },
+    { id: 'corner-nw', x: screenTopLeft.x, y: screenTopLeft.y, cursor: 'nwse-resize', directionX: 'start', directionY: 'start', type: 'corner' },
+    { id: 'corner-ne', x: screenTopRight.x, y: screenTopRight.y, cursor: 'nesw-resize', directionX: 'end', directionY: 'start', type: 'corner' },
+    { id: 'corner-sw', x: screenBottomLeft.x, y: screenBottomLeft.y, cursor: 'nesw-resize', directionX: 'start', directionY: 'end', type: 'corner' },
+    { id: 'corner-se', x: screenBottomRight.x, y: screenBottomRight.y, cursor: 'nwse-resize', directionX: 'end', directionY: 'end', type: 'corner' },
+    { id: 'edge-top', x: screenTopCenter.x, y: screenTopCenter.y, cursor: 'ns-resize', directionX: 'center', directionY: 'start', type: 'edge' },
+    { id: 'edge-bottom', x: screenBottomCenter.x, y: screenBottomCenter.y, cursor: 'ns-resize', directionX: 'center', directionY: 'end', type: 'edge' },
+    { id: 'edge-left', x: screenLeftCenter.x, y: screenLeftCenter.y, cursor: 'ew-resize', directionX: 'start', directionY: 'center', type: 'edge' },
+    { id: 'edge-right', x: screenRightCenter.x, y: screenRightCenter.y, cursor: 'ew-resize', directionX: 'end', directionY: 'center', type: 'edge' },
+    { id: 'center', x: screenCenter.x, y: screenCenter.y, cursor: 'move', mode: 'move', type: 'center' },
   ]
 
+  // Get shapes not in any frame (infinite canvas shapes)
+  const infiniteCanvasShapes = useMemo(() => {
+    return Object.values(shapes).filter(shape => shape.type !== 'frame' && !shape.frameId)
+  }, [shapes])
+
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 relative min-h-0">
-      <div className="flex-1 bg-zinc-950 flex overflow-hidden min-h-0 h-full">
-        <div className="relative bg-zinc-900/60 border border-zinc-800 shadow-inner flex-1 overflow-hidden">
-          {/* Horizontal Ruler */}
-          <div className="absolute left-[16px] right-0 top-0 h-4 bg-zinc-800 border-b border-zinc-700 text-[9px] text-zinc-400 select-none overflow-hidden">
-            <div
-              className="flex relative"
-              style={{
-                width: canvasSize.width,
-                transform: `translateX(${artboardPosition.x}px)`,
-              }}
-            >
-              {horizontalMarks.map((mark, index) => {
-                const width = index === horizontalMarks.length - 1 ? 0 : Math.min(RULER_STEP, canvasSize.width - mark)
-                return (
-                  <div key={`hr-${mark}`} className="relative" style={{ width }}>
-                    <span className="absolute left-0 bottom-0 translate-y-[2px]">
-                      {Math.round(mark + artboardPosition.x)}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Vertical Ruler */}
-          <div className="absolute top-[16px] bottom-0 left-0 w-4 bg-zinc-800 border-r border-zinc-700 text-[9px] text-zinc-400 select-none overflow-hidden">
-            <div
-              className="flex flex-col relative"
-              style={{
-                height: canvasSize.height,
-                transform: `translateY(${artboardPosition.y}px)`,
-              }}
-            >
-              {verticalMarks.map((mark, index) => {
-                const height = index === verticalMarks.length - 1 ? 0 : Math.min(RULER_STEP, canvasSize.height - mark)
-                return (
-                  <div key={`vr-${mark}`} className="relative" style={{ height }}>
-                    <span className="absolute top-0 left-1">{Math.round(mark + artboardPosition.y)}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Position Label */}
-          <div className="absolute left-[16px] top-0 text-[10px] text-zinc-400 flex items-center gap-2 select-none">
-            <span>X: {Math.round(artboardPosition.x)}px</span>
-            <span>Y: {Math.round(artboardPosition.y)}px</span>
-          </div>
-
-          {/* Artboard Frame */}
-          <div
-            className="absolute border border-blue-500 shadow-lg"
-            style={{
-              width: canvasSize.width,
-              height: canvasSize.height,
-              top: 16 + artboardPosition.y,
-              left: 16 + artboardPosition.x,
-              boxShadow: '0 0 0 1px rgba(59,130,246,0.6)',
-            }}
+    <div className="flex-1 flex flex-col relative min-h-0 overflow-hidden" style={{ backgroundColor: canvasBackground }}>
+      <div className="flex-1 flex overflow-hidden min-h-0 h-full" style={{ backgroundColor: canvasBackground }}>
+        <div className="relative border border-zinc-800 shadow-inner flex-1 overflow-hidden" style={{ backgroundColor: canvasBackground }}>
+          {/* Konva Stage - ALWAYS PRESENT for infinite canvas */}
+          <Stage
+            width={window.innerWidth}
+            height={window.innerHeight}
+            ref={stageRef}
+            style={{ cursor: stageCursor, position: 'absolute', top: 0, left: 0 }}
+            onMouseDown={onStagePointerDown}
+            onMouseMove={onStagePointerMove}
+            onMouseUp={onStagePointerUp}
+            onTouchStart={onStagePointerDown}
+            onTouchMove={onStagePointerMove}
+            onTouchEnd={onStagePointerUp}
           >
-            {/* Konva Stage */}
-            <Stage
-              width={canvasSize.width}
-              height={canvasSize.height}
-              ref={stageRef}
-              className="bg-zinc-900"
-              style={{ cursor: stageCursor }}
-              onMouseDown={onStagePointerDown}
-              onMouseMove={onStagePointerMove}
-              onMouseUp={onStagePointerUp}
-              onTouchStart={onStagePointerDown}
-              onTouchMove={onStagePointerMove}
-              onTouchEnd={onStagePointerUp}
-            >
-              <KonvaLayer>
-                <Rect
-                  x={0}
-                  y={0}
-                  width={canvasSize.width}
-                  height={canvasSize.height}
-                  fill={selectedLayer?.background ?? '#18181b'}
-                  onPointerDown={onArtboardBackgroundClick}
-                />
-                {layoutSettings.showGrid && renderDraftGrid()}
-                {layers.flatMap((layer) =>
-                  layer.visible ? layer.objects.filter((obj) => obj.visible).map((obj) => renderObject(layer.id, obj)) : []
-                )}
-                {renderDraft()}
-                <Transformer ref={transformerRef} rotateEnabled />
-              </KonvaLayer>
-            </Stage>
-          </div>
+            <KonvaLayer>
+              {/* Render frame backgrounds and shapes inside frames */}
+              {layers.flatMap((layer) => {
+                const frameBackground = (
+                  <Rect
+                    key={`frame-bg-${layer.id}`}
+                    x={layer.x}
+                    y={layer.y}
+                    width={layer.width}
+                    height={layer.height}
+                    fill={layer.background ?? 'rgba(255, 255, 255, 0.02)'}
+                    listening={activeTool === 'select'}
+                    stroke="#3f3f46"
+                    strokeWidth={0.5}
+                    onPointerDown={(e) => onArtboardBackgroundClick(e, layer.id)}
+                  />
+                )
+                const shapes = layer.visible ? layer.objects.filter((obj) => obj.visible).map((obj) => renderObject(layer.id, obj)) : []
+                return [frameBackground, ...shapes]
+              })}
+
+              {/* Render shapes on infinite canvas (no frame) */}
+              {infiniteCanvasShapes.filter(s => s.visible).map(shape => renderObject(null, shape))}
+
+              {/* Render grid overlay */}
+              {renderDraftGrid()}
+
+              <DraftPreview draft={dragDraft} />
+              <Transformer ref={transformerRef} rotateEnabled />
+            </KonvaLayer>
+          </Stage>
+
+          {/* Only show artboard border and handles when a frame is selected */}
+          {layers.length > 0 && selectedLayer && (
+            <>
+
+              {/* Artboard Frame Border */}
+              <div
+                className="absolute border border-blue-500 shadow-lg pointer-events-none"
+                style={{
+                  width: canvasSize.width * zoomLevel,
+                  height: canvasSize.height * zoomLevel,
+                  top: artboardPosition.y * zoomLevel + stagePosition.y,
+                  left: artboardPosition.x * zoomLevel + stagePosition.x,
+                  boxShadow: '0 0 0 1px rgba(59,130,246,0.6)',
+                }}
+              />
 
           {/* Canvas Size Label */}
           <div
             className="absolute bg-blue-600 text-white text-[10px] px-3 py-1 rounded-full shadow"
             style={{
-              top: 16 + artboardPosition.y + canvasSize.height + 10,
-              left: 16 + artboardPosition.x + canvasSize.width / 2 - 30,
+              top: (artboardPosition.y + canvasSize.height) * zoomLevel + stagePosition.y + 10,
+              left: (artboardPosition.x + canvasSize.width / 2) * zoomLevel + stagePosition.x - 30,
             }}
           >
-            {Math.round(canvasSize.width)} × {Math.round(canvasSize.height)}
+            {Math.round(canvasSize.width)} Ã— {Math.round(canvasSize.height)}
           </div>
 
-          {/* Artboard Handles */}
-          {handleSpecs.map((spec) => (
-            <CanvasHandle
-              key={spec.id}
-              type={spec.type}
-              position={{ x: spec.x, y: spec.y }}
-              cursor={spec.cursor}
-              onPointerDown={onBeginArtboardDrag(spec.mode ?? 'resize', {
-                directionX: spec.directionX,
-                directionY: spec.directionY,
-              })}
-              title={spec.type === 'center' ? 'Move artboard' : 'Artboard handle'}
-            />
-          ))}
+              {/* Artboard Handles */}
+              {handleSpecs.map((spec) => (
+                <CanvasHandle
+                  key={spec.id}
+                  type={spec.type}
+                  position={{ x: spec.x, y: spec.y }}
+                  cursor={spec.cursor}
+                  onPointerDown={onBeginArtboardDrag(spec.mode ?? 'resize', {
+                    directionX: spec.directionX,
+                    directionY: spec.directionY,
+                  })}
+                  title={spec.type === 'center' ? 'Move artboard' : 'Artboard handle'}
+                />
+              ))}
+            </>
+          )}
         </div>
       </div>
     </div>

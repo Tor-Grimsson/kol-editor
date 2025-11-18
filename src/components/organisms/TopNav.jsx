@@ -8,7 +8,7 @@ const TopNav = ({
   return (
     <nav className="w-full border-b border-zinc-800 bg-zinc-900 px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <span className="uppercase tracking-wide text-zinc-400">Konva Layer Editor</span>
+        <span className="tracking-wide text-zinc-400">KOL--EDI--TÃ³R</span>
       </div>
       <div className="flex items-center gap-2">
         <Button
@@ -17,7 +17,7 @@ const TopNav = ({
           title="Canvas Size"
           onClick={onCanvasSizeClick}
         >
-          É
+          ï¿½
         </Button>
         <Button
           square
@@ -33,7 +33,7 @@ const TopNav = ({
           title="Load (pending)"
           disabled
         >
-          =Â
+          =ï¿½
         </Button>
       </div>
     </nav>
