@@ -1,0 +1,489 @@
+@import "tailwindcss";
+
+/**
+ * kolkrabbi Design System - Unified Theme
+ * Version: 3.1 - Context-Aware Color System
+ * Last Updated: 2025-10-16
+ *
+ * Design Principles:
+ * - Material Design 3-inspired token architecture
+ * - Context-aware components via scoped remapping
+ * - Automatic light/dark mode adaptation
+ * - Geometric opacity scale (2x progression)
+ * - WCAG AA/AAA compliant color pairs
+ */
+
+/**
+ * =============================================================================
+ * DESIGN TOKENS - LIGHT MODE
+ * =============================================================================
+ */
+
+@theme {
+
+  /* ---------------------------------------------------------------------------
+   * FONT FAMILIES
+   * --------------------------------------------------------------------------- */
+
+  --kol-font-family-rgrot-narrow: 'RightGrotesk', 'Inter Tight', sans-serif;
+  --kol-font-family-rgrot-tight: 'RightGrotesk', 'Inter Tight', sans-serif;
+  --kol-font-family-rgrot-compact: 'RightGroteskCompact', 'Inter Tight', sans-serif;
+  --kol-font-family-body: 'Inter Tight', system-ui, -apple-system, sans-serif;
+  --kol-font-family-mono: 'RightGroteskMono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  --kol-font-family-heading: var(--kol-font-family-rgrot-tight);
+  --kol-font-family-base: var(--kol-font-family-body);
+
+  /* ---------------------------------------------------------------------------
+   * BRAND COLORS (Level 1: Primitive Foundation)
+   *
+   * Raw hex values that establish the foundational color palette.
+   * All tokens use --kol- prefix per system naming convention.
+   * --------------------------------------------------------------------------- */
+
+  --kol-color-brand-dark: #1e1e21;
+  --kol-color-brand-light: #fcfbf8;
+  --kol-color-brand-yellow: #f5d245;
+  --kol-color-brand-yellow-deep: #f5bb1d;
+  --kol-color-brand-orange: #a83e01;
+  --kol-color-brand-red: #bc583f;
+  --kol-color-absolute-black: #000000;
+  --kol-color-absolute-white: #ffffff;
+  --kol-color-median-dark: #0d0d0d;
+  --kol-color-median-light: #f8f8f8;
+
+  /* ---------------------------------------------------------------------------
+   * NEUTRAL GRAYS (Level 1: Primitive Foundation)
+   *
+   * Raw hex values with 0 saturation, establishing the neutral scale.
+   * All tokens use --kol- prefix per system naming convention.
+   * --------------------------------------------------------------------------- */
+
+  --kol-color-neutral-50: #fafafa;
+  --kol-color-neutral-100: #f5f5f5;
+  --kol-color-neutral-200: #eeeeee;
+  --kol-color-neutral-300: #e0e0e0;
+  --kol-color-neutral-400: #bfbfbf;
+  --kol-color-neutral-500: #757575;
+  --kol-color-neutral-600: #616161;
+  --kol-color-neutral-700: #424242;
+  --kol-color-neutral-800: #212121;
+  --kol-color-neutral-900: #1e1e21;
+
+  /* ---------------------------------------------------------------------------
+   * KOL COLOR SYSTEM - LIGHT MODE (Default)
+   * --------------------------------------------------------------------------- */
+
+  /* Surface Tokens (Page-level) */
+  --kol-surface-primary: #fafafa;
+  --kol-surface-on-primary: #121215;
+
+  --kol-surface-secondary: #f2f2f2;
+  --kol-surface-on-secondary: #19191d;
+
+  --kol-surface-tertiary: #ffffff;
+  --kol-surface-on-tertiary: #0e0e11;
+
+  --kol-surface-inverse: #0e0e11;
+  --kol-surface-on-inverse: #fcfbf8;
+
+  --kol-surface-secondary-inverse: #212121;
+  --kol-surface-tertiary-inverse: #424242;
+
+  /* Surface Split Tokens */
+  --kol-surface-support-split: #eeeeee;
+  --kol-surface-support-split-inverse: #202026;
+  --kol-surface-absolute-split: #ffffff;
+  --kol-surface-absolute-split-inverse: #000000;
+
+  /* Container Tokens (Component-level) */
+  --kol-container-primary: #f5f5f5;
+  --kol-container-on-primary: #19191d;
+
+  --kol-container-secondary: #eeeeee;
+  --kol-container-on-secondary: #202026;
+
+  --kol-container-elevated: #f5f5f5;
+  --kol-container-on-elevated: #242427;
+
+  /* Accent Tokens */
+  --kol-accent-primary: #f5d245;
+  --kol-accent-on-primary: #1e1e21;
+  --kol-accent-primary-strong: #f5bb1d;
+  --kol-accent-primary-muted: color-mix(in srgb, #f5d245 18%, transparent);
+
+  /* Status Tokens */
+  --kol-status-danger: #9b3928;
+  --kol-status-on-danger: #ffffff;
+  --kol-status-danger-strong: #bc583f;
+  --kol-status-danger-muted: color-mix(in srgb, #9b3928 18%, transparent);
+
+  /* Border Tokens (Semantic) */
+  --kol-border-default: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
+  --kol-border-subtle: color-mix(in srgb, var(--kol-surface-on-primary) 4%, transparent);
+  --kol-border-strong: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+  --kol-border-hover: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+  --kol-border-focus: var(--kol-accent-primary);
+  --kol-border-active: var(--kol-accent-primary-strong);
+  --kol-focus-ring: var(--kol-accent-primary);
+
+  /* State Tokens - Hover (5% mix) */
+  --kol-surface-primary-hover: color-mix(in srgb, var(--kol-surface-primary) 95%, var(--kol-surface-on-primary) 5%);
+  --kol-surface-secondary-hover: color-mix(in srgb, var(--kol-surface-secondary) 95%, var(--kol-surface-on-secondary) 5%);
+  --kol-surface-tertiary-hover: color-mix(in srgb, var(--kol-surface-tertiary) 95%, var(--kol-surface-on-tertiary) 5%);
+  --kol-container-primary-hover: color-mix(in srgb, var(--kol-container-primary) 95%, var(--kol-container-on-primary) 5%);
+  --kol-container-secondary-hover: color-mix(in srgb, var(--kol-container-secondary) 95%, var(--kol-container-on-secondary) 5%);
+
+  /* State Tokens - Active (10% mix) */
+  --kol-surface-primary-active: color-mix(in srgb, var(--kol-surface-primary) 90%, var(--kol-surface-on-primary) 10%);
+  --kol-surface-secondary-active: color-mix(in srgb, var(--kol-surface-secondary) 90%, var(--kol-surface-on-secondary) 10%);
+  --kol-surface-tertiary-active: color-mix(in srgb, var(--kol-surface-tertiary) 90%, var(--kol-surface-on-tertiary) 10%);
+  --kol-container-primary-active: color-mix(in srgb, var(--kol-container-primary) 90%, var(--kol-container-on-primary) 10%);
+  --kol-container-secondary-active: color-mix(in srgb, var(--kol-container-secondary) 90%, var(--kol-container-on-secondary) 10%);
+
+  /* ---------------------------------------------------------------------------
+   * OPACITY HEX TOKENS (Hardcoded neutral opacity values)
+   *
+   * These are pre-calculated opacity values as solid hex colors, avoiding
+   * color-mix functions for better browser compatibility and performance.
+   * --------------------------------------------------------------------------- */
+
+  /* Opacity Hex - Light Mode (dark overlays on light backgrounds) */
+  --kol-opacity-hex-01: #fcfbfb;
+  --kol-opacity-hex-02: #f4f4f5;
+  --kol-opacity-hex-04: #ebebeb;
+  --kol-opacity-hex-08: #dbdbdb;
+  --kol-opacity-hex-12: #a3a3a4;
+  --kol-opacity-hex-16: #5b5b5d;
+  --kol-opacity-hex-24: #363639;
+  --kol-opacity-hex-32: #2e2e30;
+  --kol-opacity-hex-64: #242427;
+  --kol-opacity-hex-80: #1b1b1e;
+  --kol-opacity-hex-88: #171719;
+  --kol-opacity-hex-96: #111112;
+
+  /* Opacity Hex Inverse - Light Mode (light overlays on dark backgrounds) */
+  --kol-opacity-hex-inverse-01: #111112;
+  --kol-opacity-hex-inverse-02: #171719;
+  --kol-opacity-hex-inverse-04: #1b1b1e;
+  --kol-opacity-hex-inverse-08: #242427;
+  --kol-opacity-hex-inverse-12: #2e2e30;
+  --kol-opacity-hex-inverse-16: #363639;
+  --kol-opacity-hex-inverse-24: #5b5b5d;
+  --kol-opacity-hex-inverse-32: #a3a3a4;
+  --kol-opacity-hex-inverse-64: #dbdbdb;
+  --kol-opacity-hex-inverse-80: #ebebeb;
+  --kol-opacity-hex-inverse-88: #f4f4f5;
+  --kol-opacity-hex-inverse-96: #fcfbfb;
+
+  /* ---------------------------------------------------------------------------
+   * SPACING SCALE (4px base)
+   * --------------------------------------------------------------------------- */
+
+  --spacing-1: 0.25rem;     /* 4px */
+  --spacing-2: 0.5rem;      /* 8px */
+  --spacing-3: 0.75rem;     /* 12px */
+  --spacing-4: 1rem;        /* 16px */
+  --spacing-5: 1.25rem;     /* 20px */
+  --spacing-6: 1.5rem;      /* 24px */
+  --spacing-8: 2rem;        /* 32px */
+  --spacing-10: 2.5rem;     /* 40px */
+  --spacing-12: 3rem;       /* 48px */
+  --spacing-16: 4rem;       /* 64px */
+  --spacing-20: 5rem;       /* 80px */
+  --spacing-24: 6rem;       /* 96px */
+
+  /* Named spacing aliases */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* Semantic spacing */
+  --spacing-section: var(--spacing-20);
+  --spacing-container: var(--spacing-10);
+
+  /* ---------------------------------------------------------------------------
+   * Z-INDEX SCALE
+   * --------------------------------------------------------------------------- */
+
+  --z-base: 1;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-overlay: 50;
+  --z-modal: 100;
+  --z-toast: 200;
+  --z-nav: 1000;
+
+  /* ---------------------------------------------------------------------------
+   * TYPOGRAPHY SCALE
+   * --------------------------------------------------------------------------- */
+
+  --font-size-xs: 0.75rem;      /* 12px */
+  --font-size-sm: 0.875rem;     /* 14px */
+  --font-size-base: 1rem;       /* 16px */
+  --font-size-lg: 1.125rem;     /* 18px */
+  --font-size-xl: 1.25rem;      /* 20px */
+  --font-size-2xl: 1.5rem;      /* 24px */
+  --font-size-3xl: 2rem;        /* 32px */
+  --font-size-4xl: 2.5rem;      /* 40px */
+  --font-size-5xl: 3rem;        /* 48px */
+  --font-size-6xl: 4rem;        /* 64px */
+  --font-size-7xl: 6rem;        /* 96px */
+
+  /* Font Weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-black: 900;
+
+  /* ---------------------------------------------------------------------------
+   * BORDER RADIUS (4px increments)
+   * --------------------------------------------------------------------------- */
+
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------------
+   * SHADOWS
+   * --------------------------------------------------------------------------- */
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+  /* ---------------------------------------------------------------------------
+   * TRANSITIONS
+   * --------------------------------------------------------------------------- */
+
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* ---------------------------------------------------------------------------
+   * OPACITY VALUES (For hover states)
+   * --------------------------------------------------------------------------- */
+
+  --opacity-hover: 0.8;
+  --opacity-disabled: 0.5;
+  --opacity-subtle: 0.6;
+}
+
+/**
+ * =============================================================================
+ * FONT FACE DECLARATIONS
+ * =============================================================================
+ */
+
+
+
+@font-face {
+  font-family: 'RightGrotesk';
+  src: url('/fonts/PPRightGrotesk-NarrowMedium.woff') format('woff');
+  font-stretch: condensed;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RightGrotesk';
+  src: url('/fonts/PPRightGrotesk-TightMedium.woff') format('woff');
+  font-stretch: extra-condensed;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RightGroteskCompact';
+  src: url('/fonts/PPRightGrotesk-CompactRegular.woff') format('woff');
+  font-stretch: condensed;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RightGroteskMono';
+  src: url('/fonts/PPRightGroteskMono-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RightGroteskMono';
+  src: url('/fonts/PPRightGroteskMono-Fine.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RightGroteskMono';
+  src: url('/fonts/PPRightGroteskMono-FineItalic.woff') format('woff');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Tight';
+  src: url('/fonts/InterTight-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Inter Tight';
+  src: url('/fonts/InterTight-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TGMalromur';
+  src: url('/fonts/TGMalromurRomanVF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TGMalromur';
+  src: url('/fonts/TGMalromurItalicVF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TGRoot';
+  src: url('/fonts/TGRoot-TuneVF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TGTrollatunga';
+  src: url('/fonts/TGTrollatunga-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TGDylgjur';
+  src: url('/fonts/TGDylgjur-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TGGullhamrar';
+  src: url('/fonts/TGGullhamrarVF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TGSilfurbarki';
+  src: url('/fonts/TGSilfurbarki-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TGOrdspor';
+  src: url('/fonts/TGOrdsporVF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/**
+ * =============================================================================
+ * DARK MODE OVERRIDES
+ * =============================================================================
+ */
+
+:is([data-theme="dark"], .dark) {
+
+    /* Surface Tokens (Page-level) - Dark Mode */
+    --kol-surface-primary: #121215;
+    --kol-surface-on-primary: #fafafa;
+
+    --kol-surface-secondary: #19191d;
+    --kol-surface-on-secondary: #f8f8f8;
+
+    --kol-surface-tertiary: #0e0e11;
+    --kol-surface-on-tertiary: #ffffff;
+
+    --kol-surface-inverse: #fcfbf8;
+    --kol-surface-on-inverse: #0e0e11;
+
+    --kol-surface-secondary-inverse: #e0e0e0;
+    --kol-surface-tertiary-inverse: #d4d4d8;
+
+    /* Surface Split Tokens - Dark Mode */
+    --kol-surface-support-split: #202026;
+    --kol-surface-support-split-inverse: #eeeeee;
+    --kol-surface-absolute-split: #000000;
+    --kol-surface-absolute-split-inverse: #ffffff;
+
+    /* Container Tokens (Component-level) - Dark Mode */
+    --kol-container-primary: #19191d;
+    --kol-container-on-primary: #f5f5f5;
+
+    --kol-container-secondary: #202026;
+    --kol-container-on-secondary: #eeeeee;
+
+    --kol-container-elevated: #242427;
+    --kol-container-on-elevated: #f5f5f5;
+
+    /* Status Tokens - Dark Mode */
+    --kol-status-danger: #bc583f;
+    --kol-status-danger-strong: #9b3928;
+    --kol-status-danger-muted: color-mix(in srgb, #bc583f 24%, transparent);
+
+    /* Accent Muted - Dark Mode (higher opacity) */
+    --kol-accent-primary-muted: color-mix(in srgb, #f5d245 24%, transparent);
+
+    /* Opacity Hex - Dark Mode (light overlays on dark backgrounds) */
+    --kol-opacity-hex-01: #111112;
+    --kol-opacity-hex-02: #171719;
+    --kol-opacity-hex-04: #1b1b1e;
+    --kol-opacity-hex-08: #242427;
+    --kol-opacity-hex-12: #2e2e30;
+    --kol-opacity-hex-16: #363639;
+    --kol-opacity-hex-24: #5b5b5d;
+    --kol-opacity-hex-32: #a3a3a4;
+    --kol-opacity-hex-64: #dbdbdb;
+    --kol-opacity-hex-80: #ebebeb;
+    --kol-opacity-hex-88: #f4f4f5;
+    --kol-opacity-hex-96: #fcfbfb;
+
+    /* Opacity Hex Inverse - Dark Mode (dark overlays on light backgrounds) */
+    --kol-opacity-hex-inverse-01: #fcfbfb;
+    --kol-opacity-hex-inverse-02: #f4f4f5;
+    --kol-opacity-hex-inverse-04: #ebebeb;
+    --kol-opacity-hex-inverse-08: #dbdbdb;
+    --kol-opacity-hex-inverse-12: #a3a3a4;
+    --kol-opacity-hex-inverse-16: #5b5b5d;
+    --kol-opacity-hex-inverse-24: #363639;
+    --kol-opacity-hex-inverse-32: #2e2e30;
+    --kol-opacity-hex-inverse-64: #242427;
+    --kol-opacity-hex-inverse-80: #1b1b1e;
+    --kol-opacity-hex-inverse-88: #171719;
+    --kol-opacity-hex-inverse-96: #111112;
+}
+

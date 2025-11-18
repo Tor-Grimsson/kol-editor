@@ -1,0 +1,309 @@
+====================================================================
+KOLKRABBI SEO METADATA AUDIT - EXECUTIVE SUMMARY
+====================================================================
+
+PROJECT STATUS: CRITICAL GAPS IDENTIFIED
+Launch Readiness: NOT READY FOR SEO
+
+====================================================================
+CURRENT STATE SCORECARD
+====================================================================
+
+Base HTML Metadata:           2/10  (favicon, viewport, basic title only)
+Meta Descriptions:           0/58  (ZERO pages have descriptions)
+OG Tags:                     0/58  (ZERO pages have OG tags)
+Page Titles:                 0/58  (All pages use generic title)
+Structured Data:             0/58  (No schema.org markup)
+Infrastructure Files:         0/3   (No robots.txt, sitemap, manifest)
+SEO Packages:                0/1   (No react-helmet installed)
+
+OVERALL SEO READINESS: 1%
+
+====================================================================
+MISSING METADATA BREAKDOWN
+====================================================================
+
+PAGES WITHOUT METADATA: 58 out of 58 pages
+
+By Category:
+  - Home/Main Routes:     6/6 pages missing metadata
+  - Foundry Routes:       7/7 pages missing metadata  
+  - Collections:          4/4 pages missing metadata
+  - Specimen Pages:      32/32 pages missing metadata
+  - Workshop/Internal:   40+ pages (lower priority)
+
+====================================================================
+CRITICAL GAPS (Must Fix Before Launch)
+====================================================================
+
+1. NO SEO PACKAGE
+   - Missing: react-helmet-async
+   - Impact: Cannot set dynamic meta tags per page
+   - Effort: npm install + 2 min
+
+2. NO DYNAMIC PAGE TITLES
+   - Current: All pages show "kolkrabbi.io — Web"
+   - Impact: No keyword differentiation, poor SERP CTR
+   - Effort: 4-6 hours
+
+3. NO META DESCRIPTIONS
+   - Current: 0 descriptions across entire site
+   - Impact: Google will truncate or generate auto-descriptions
+   - Effort: 4-6 hours
+
+4. NO OG TAGS
+   - Current: Zero social sharing metadata
+   - Impact: Generic/broken preview cards on social media
+   - Effort: 2-3 hours
+
+5. NO robots.txt
+   - Current: Missing
+   - Impact: Search engines use default crawl rules
+   - Effort: 30 min
+
+6. NO sitemap.xml
+   - Current: Missing
+   - Impact: Search engines may miss pages
+   - Effort: 1-2 hours
+
+====================================================================
+ROUTE INVENTORY (58 TOTAL)
+====================================================================
+
+MAIN ROUTES (6):
+  / (Home)
+  /studio
+  /work
+  /work/:slug
+  /stack (Blog)
+  /stack/:slug
+
+FOUNDRY ROUTES (9):
+  /foundry
+  /foundry/typefaces
+  /foundry/specimens
+  /foundry/licensing
+  /foundry/malromur
+  /foundry/root
+  /foundry/trollatunga
+  /foundry/dylgjur
+  /foundry/gullhamrar
+  /foundry/silfurbarki
+  /foundry/ordspor
+
+COLLECTIONS ROUTES (4):
+  /collections
+  /collections/illustrations
+  /collections/logomarks
+  /collections/motion-graphics
+
+SPECIMEN ROUTES (32):
+  Málrómur: 11 pages
+  Gullhamrar: 4 pages
+  Rót: 6 pages
+  Dylgjur: 2 pages
+  Silfurbarki: 2 pages
+  Tröllatunga: 1 page
+  Orðspor: 6 pages
+
+WORKSHOP (40+):
+  /workshop/* (internal, lower priority)
+
+====================================================================
+METADATA TEMPLATE EXAMPLES NEEDED
+====================================================================
+
+Homepage Example:
+  Title: "Kolkrabbi — Design System, Type Foundry & Studio"
+  Description: "Explore Kolkrabbi: A comprehensive design system..."
+  OG Title: "Kolkrabbi — Design System & Type Foundry"
+  OG Image: [hero image 1200x630]
+
+Typeface Page Example:
+  Title: "Málrómur — Free Typeface by Kolkrabbi"
+  Description: "Download Málrómur, a variable serif typeface..."
+  OG Title: "[Typeface Name]"
+  OG Image: [typeface specimen preview]
+
+Blog Article Example:
+  Title: "[Article Title] — Kolkrabbi"
+  Description: "[Article excerpt]"
+  OG Type: "article"
+  OG Image: [article featured image from CMS]
+
+====================================================================
+MISSING STATIC ASSETS
+====================================================================
+
+Critical:
+  ❌ robots.txt (file)
+  ❌ sitemap.xml (file)
+  ❌ OG image assets (1200x630 JPG/PNG)
+
+Recommended:
+  ❌ favicon.ico (currently only SVG)
+  ❌ Apple touch icons (for home screen)
+  ❌ Manifest file (PWA)
+
+====================================================================
+IMPLEMENTATION ROADMAP
+====================================================================
+
+PHASE 1: IMMEDIATE (4-6 hours) - MUST DO BEFORE LAUNCH
+  [1] Install react-helmet-async
+  [2] Update index.html with global OG tags
+  [3] Create robots.txt
+  [4] Create sitemap.xml
+  [5] Add metadata to 58 route components
+  [6] Create default OG image
+  [7] Test with validators
+
+PHASE 2: ESSENTIAL (6-8 hours) - LAUNCH WEEK 1
+  [8] Dynamic metadata for CMS content
+  [9] JSON-LD schema.org markup
+  [10] favicon.ico fallback
+  [11] Twitter Card optimization
+  [12] Submit to Google Search Console
+
+PHASE 3: OPTIMIZATION (4-6 hours) - POST-LAUNCH
+  [13] Per-page OG images
+  [14] Canonical URL strategy
+  [15] Language alternates (hreflang)
+  [16] Mobile optimization verification
+  [17] Monitor indexing progress
+
+====================================================================
+TECHNICAL ARCHITECTURE CONSIDERATIONS
+====================================================================
+
+Framework: React 19 (SPA - Single Page Application)
+Router: React Router DOM v6.26.2
+CMS: Sanity (for Work projects and Articles)
+Limitation: Client-side routing means dynamic meta tags must be set
+           in JavaScript, not HTML (requires react-helmet-async)
+
+Challenge: Search engines may not execute JS fully
+Solution: Use react-helmet-async + prerender for critical pages
+
+====================================================================
+EFFORT ESTIMATES
+====================================================================
+
+Setting up SEO framework:
+  - Package installation: 15 min
+  - App.jsx wrapper: 15 min
+  - Metadata constants: 30 min
+  Subtotal: 1 hour
+
+Static pages metadata (26 pages):
+  - 10 minutes per page × 26 = 260 minutes (4.3 hours)
+
+Dynamic pages metadata (32 routes):
+  - 5-10 minutes per page × 32 = 160-320 minutes (2.7-5.3 hours)
+
+Infrastructure files:
+  - robots.txt: 15 min
+  - sitemap.xml: 45 min
+  - OG images: 1-2 hours
+  Subtotal: 2-2.5 hours
+
+Testing & validation:
+  - Tools setup: 30 min
+  - Testing: 1 hour
+  Subtotal: 1.5 hours
+
+TOTAL: 10-15 hours (Phase 1 = ~7 hours, critical items)
+
+====================================================================
+RECOMMENDED TOOLS
+====================================================================
+
+For Implementation:
+  - react-helmet-async (npm package)
+  - Vite asset processor (already available)
+
+For Testing:
+  - Facebook Debugger (https://developers.facebook.com/tools/debug/)
+  - Twitter Card Validator (https://cards-dev.twitter.com/validator)
+  - Google Search Console (https://search.google.com/search-console/)
+  - Schema.org validator (https://validator.schema.org/)
+  - Lighthouse (browser built-in)
+
+For Monitoring:
+  - Google Search Console (indexing)
+  - Bing Webmaster Tools
+  - SEMRush or Ahrefs (competitive analysis)
+
+====================================================================
+RISK ASSESSMENT
+====================================================================
+
+If NOT implemented before launch:
+  RISK LEVEL: HIGH
+
+  Consequences:
+  - Poor search engine visibility for 3-6 months post-launch
+  - Social media shares show generic/broken preview cards
+  - Difficulty tracking conversions/engagement on social
+  - Missed organic traffic opportunity
+  - May need emergency fixes post-launch
+  - Competitors' sites may outrank Kolkrabbi for typeface queries
+
+  Recovery time if added post-launch: 6-12 months for full indexing
+
+====================================================================
+QUICK START COMMAND
+====================================================================
+
+# Install SEO package
+npm install react-helmet-async
+
+# Key files to create/update:
+1. /public/robots.txt
+2. /public/sitemap.xml
+3. /src/App.jsx (wrap in HelmetProvider)
+4. /index.html (update with default OG tags)
+5. /src/constants/metadata.js (metadata templates)
+6. All route components (add Helmet with metadata)
+
+====================================================================
+SUCCESS CRITERIA
+====================================================================
+
+Before Launch:
+  ✓ Every route has unique, descriptive title
+  ✓ Every route has meta description (120-160 chars)
+  ✓ Every route has OG title, description, image, type
+  ✓ robots.txt exists and is valid
+  ✓ sitemap.xml exists and includes all major pages
+  ✓ Default OG image asset created
+  ✓ No console errors related to meta tags
+  ✓ Facebook Debugger shows proper previews
+  ✓ Twitter Card Validator shows proper cards
+
+Post-Launch (Week 1):
+  ✓ Sitemap submitted to Google Search Console
+  ✓ No crawl errors in GSC
+  ✓ Pages indexed in Google
+  ✓ Rich snippets appearing for supported content
+
+====================================================================
+NEXT STEPS
+====================================================================
+
+1. Review this audit with team
+2. Allocate 10-15 hours for implementation
+3. Assign owner for react-helmet integration
+4. Create metadata spreadsheet for all 58 pages
+5. Design/create OG image template
+6. Create timeline that doesn't delay launch
+7. Schedule validation testing
+
+====================================================================
+END OF REPORT
+====================================================================
+
+Generated: November 15, 2025
+Auditor Assessment: CRITICAL GAPS - MUST FIX BEFORE LAUNCH
+Confidence Level: HIGH (comprehensive code review + route analysis)
+

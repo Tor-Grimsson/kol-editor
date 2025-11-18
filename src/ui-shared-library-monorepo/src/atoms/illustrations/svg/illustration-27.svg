@@ -1,0 +1,17 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="320" height="320" rx="24" fill="white" fill-opacity="0.04"/>
+<circle cx="160" cy="160" r="112" stroke="white"/>
+<path d="M160 48V272" stroke="white"/>
+<path d="M272 160L48 160" stroke="white"/>
+<path d="M238.75 81.25L81.25 238.75" stroke="white"/>
+<path d="M238.75 238.75L81.25 81.25" stroke="white"/>
+<rect x="80" y="80" width="160" height="160" stroke="white"/>
+<rect x="104" y="104" width="112" height="112" stroke="white"/>
+<rect x="160" y="48" width="158.392" height="158.392" transform="rotate(45 160 48)" stroke="white"/>
+<rect x="160" y="80" width="113.137" height="113.137" transform="rotate(45 160 80)" stroke="white"/>
+<path d="M160 48L160 240" stroke="#F5D245" stroke-width="4" stroke-linecap="round" stroke-linejoin="bevel"/>
+<path d="M80 160L120 120" stroke="#F5D245" stroke-width="4" stroke-linecap="round" stroke-linejoin="bevel"/>
+<path d="M160 240L240 160" stroke="#F5D245" stroke-width="4" stroke-linecap="round" stroke-linejoin="bevel"/>
+<path d="M80 160H240" stroke="#F5D245" stroke-width="4" stroke-linecap="round" stroke-linejoin="bevel"/>
+<path d="M192 80L128 80" stroke="#F5D245" stroke-width="4" stroke-linecap="round" stroke-linejoin="bevel"/>
+</svg>
