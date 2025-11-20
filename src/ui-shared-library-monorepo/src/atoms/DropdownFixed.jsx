@@ -86,7 +86,7 @@ const DropdownFixed = ({
     },
     lg: {
       padding: '16px 24px',   // py-4 px-6
-      fontSize: '14px',
+      fontSize: '12px',
       buttonPadding: '16px 24px',
       optionPadding: '16px 24px',
       iconSize: '14px'
@@ -111,7 +111,7 @@ const DropdownFixed = ({
     >
       {/* Unified border container */}
       <div
-        className="min-w-[180px]"
+        className="min-w-[200px]"
         style={{
           borderRadius: isOpen
             ? `${currentBorderRadius} ${currentBorderRadius} 0 0`

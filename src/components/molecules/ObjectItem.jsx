@@ -1,3 +1,5 @@
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import Icon from '../icons/Icon'
 
 const ObjectItem = ({
@@ -5,35 +7,61 @@ const ObjectItem = ({
   isSelected,
   onSelect,
   onToggleVisibility,
-  onDelete
+  onDelete,
+  showLine,
+  nestLevel = 0
 }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: object.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+
   return (
-    <div
-      className={`flex items-center justify-between rounded px-2 py-1 ${
-        isSelected ? 'bg-blue-600/30' : 'bg-zinc-800'
-      }`}
-      onClick={onSelect}
-    >
-      <span>{object.name}</span>
-      <div className="flex items-center gap-1 text-zinc-400">
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleVisibility()
+    <div className="relative" ref={setNodeRef} style={style}>
+      {/* Drop line indicator - shows BEFORE this item */}
+      {showLine && (
+        <div
+          className="absolute -top-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10"
+          style={{
+            left: `${nestLevel * 16}px`,
+            width: `calc(100% - ${nestLevel * 16}px)`
           }}
-          className={object.visible ? '' : 'opacity-40'}
-        >
-          <Icon name="visible2" size={14} />
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="hover:text-red-400"
-        >
-          <Icon name="trash" size={14} />
-        </button>
+        />
+      )}
+
+      <div
+        onClick={onSelect}
+        {...attributes}
+        {...listeners}
+        className={`h-9 px-4 py-3 rounded flex justify-between items-center overflow-hidden cursor-grab active:cursor-grabbing ${
+          isSelected
+            ? 'bg-zinc-800/50 outline-1 outline-offset-[-1px] outline-orange-500'
+            : 'opacity-40 bg-zinc-800/50'
+        }`}
+        style={{
+          marginLeft: `${nestLevel * 16}px`
+        }}
+      >
+        <div className="text-zinc-300 text-xs font-semibold font-mono uppercase leading-3 tracking-tight">
+          OBJECT
+        </div>
+        <div className="flex justify-start items-center gap-4">
+          {isSelected ? (
+            <div className="w-2.5 h-2.5 bg-orange-500 rounded-full" />
+          ) : (
+            <div className="w-2.5 h-2.5 rounded-full border border-zinc-300" />
+          )}
+        </div>
       </div>
     </div>
   )

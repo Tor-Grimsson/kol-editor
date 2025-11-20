@@ -369,6 +369,32 @@ Potential improvements for future sessions:
 
 ---
 
+## 9. Git Cleanup
+
+### Added _ref to .gitignore
+Added `_ref` directory to `.gitignore` to exclude Penpot reference codebase from version control
+
+### Git Commands Used
+```bash
+git rm -r --cached _ref          # Remove from tracking, keep files
+git add .                        # Stage all changes
+git commit -m "Add _ref to gitignore and remove from tracking"
+git add .                        # Stage refactoring changes
+git commit -m "Refactor DraftPreview component and fix coordinate systems
+
+- Extract draft rendering into DraftPreview component
+- Fix frame tool pointer move handling
+- Add world-to-screen coordinate conversion for HTML overlays
+- Align resize handles with frame edges
+- Fix ghost frame appearing when deselected
+- Remove rulers and scrollbars for clean infinite canvas
+- Fix grid alignment to frame boundaries
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+```
+
+---
+
 ## Session End Notes
 
 **Duration**: ~2 hours
@@ -380,7 +406,407 @@ Potential improvements for future sessions:
 - ✅ Ghost frame bug eliminated
 - ✅ UI cleaned up (no rulers, no scrollbars)
 - ✅ Grid alignment fixed
+- ✅ Changes committed to git
+- ✅ Ready for Vercel deployment
 
 **Key Breakthrough**: Understanding the world vs screen coordinate system mismatch was the critical insight that solved the handle alignment issue.
 
 **User Satisfaction**: High - all visual alignment issues resolved, clean UI achieved
+
+**Deployment**: User preparing to deploy to Vercel (auto-detects Vite, no configuration needed)
+
+---
+
+## 10. Layer Sidebar Design Fixes
+
+### Issue
+Layer sidebar needed visual redesign to match design system mockups
+
+### Fixes Applied
+1. **Canvas text case**: Changed from lowercase "canvas" to uppercase "CANVAS" to match "OBJECT" styling
+2. **Eye icon visibility**: Eye icon now always visible (not just when selected/has selected child)
+3. **Typography**: Set explicit 12px font size for "CANVAS" text with uppercase class
+
+### Modified Files
+- `/src/components/molecules/LayerItem.jsx` - Typography and visibility fixes
+
+---
+
+## 11. Drag-and-Drop Layer Reordering
+
+### Package Installation
+```bash
+npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+```
+
+**Packages Added**:
+- `@dnd-kit/core` - Core drag-and-drop functionality
+- `@dnd-kit/sortable` - Sortable list utilities and hooks
+- `@dnd-kit/utilities` - CSS transform utilities
+
+**Total packages added**: 7 (including dependencies)
+
+### Feature: Layer Reordering
+
+#### UX Research
+Researched drag-and-drop patterns from professional design tools:
+
+**Figma Pattern**:
+- Blue indicator line shows drop position between layers
+- Blue box around container for nesting
+- Smooth animations (~100ms)
+
+**Key UX Principles**:
+1. **Cursor**: `grab` on hover, `grabbing` while dragging
+2. **Drop Indicator**: Thin line with 4px terminal on left
+3. **Drag Ghost**: Original stays in place at 40% opacity
+4. **Preview**: Semi-transparent follows cursor
+5. **Animation**: Other items smoothly move aside (~100ms)
+
+### Implementation
+
+#### 1. Added Order Property to Data Model
+
+**File**: `/src/pages/KolEditor.jsx`
+
+Added `order` property to track position in hierarchy:
+
+```javascript
+// Frames (line 38)
+const createFrameShape = (index, overrides = {}) => ({
+  // ... existing properties
+  order: overrides.order ?? index,
+  ...overrides,
+})
+
+// Objects (line 392)
+const createShape = (type, overrides = {}) => {
+  return {
+    // ... existing properties
+    order: overrides.order ?? nextShapeIdRef.current,
+    // ... remaining properties
+  }
+}
+```
+
+**Sorting** (lines 99-110):
+```javascript
+const frames = useMemo(() => {
+  return Object.values(shapes)
+    .filter(shape => shape.type === 'frame')
+    .map(frame => ({
+      ...frame,
+      objects: frame.children
+        .map(id => shapes[id])
+        .filter(Boolean)
+        .sort((a, b) => a.order - b.order)  // Sort objects by order
+    }))
+    .sort((a, b) => a.order - b.order)      // Sort frames by order
+}, [shapes])
+```
+
+#### 2. Reorder Handler Functions
+
+**File**: `/src/pages/KolEditor.jsx` (lines 608-662)
+
+**Frame Reordering**:
+```javascript
+const handleReorderFrames = (activeId, overId) => {
+  if (activeId === overId) return
+
+  const framesList = Object.values(shapes)
+    .filter(s => s.type === 'frame')
+    .sort((a, b) => a.order - b.order)
+
+  const oldIndex = framesList.findIndex(f => f.id === activeId)
+  const newIndex = framesList.findIndex(f => f.id === overId)
+
+  // Reorder array using splice
+  const reordered = [...framesList]
+  const [removed] = reordered.splice(oldIndex, 1)
+  reordered.splice(newIndex, 0, removed)
+
+  // Update order properties
+  const updates = {}
+  reordered.forEach((frame, index) => {
+    updates[frame.id] = { ...frame, order: index }
+  })
+
+  pushUndoState({ ...shapes, ...updates })
+}
+```
+
+**Object Reordering** (within frames):
+```javascript
+const handleReorderObjects = (activeId, overId, frameId) => {
+  // Similar logic but for objects within a specific frame
+  // Updates order property for all objects in frame
+}
+```
+
+#### 3. DndContext Wrapper
+
+**File**: `/src/components/organisms/LayersSidebar.jsx` (lines 1-96)
+
+**Setup**:
+```javascript
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+
+const sensors = useSensors(
+  useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8,  // 8px drag before activating (prevents accidental drags)
+    },
+  }),
+  useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  })
+)
+```
+
+**Drag Event Handlers**:
+```javascript
+const handleDragStart = (event) => {
+  const { active } = event
+  setActiveId(active.id)
+  // Determine if dragging frame or object
+  const isFrame = layers.some(layer => layer.id === active.id)
+  setActiveType(isFrame ? 'frame' : 'object')
+}
+
+const handleDragEnd = (event) => {
+  const { active, over } = event
+
+  if (!over || active.id === over.id) return
+
+  if (activeType === 'frame') {
+    onReorderFrames(active.id, over.id)
+  } else if (activeType === 'object') {
+    // Find which frame the object belongs to
+    const frameId = layers.find(layer =>
+      layer.objects.some(obj => obj.id === active.id)
+    )?.id
+    if (frameId) {
+      onReorderObjects(active.id, over.id, frameId)
+    }
+  }
+
+  setActiveId(null)
+  setActiveType(null)
+}
+```
+
+**Component Structure** (lines 90-189):
+```javascript
+return (
+  <DndContext
+    sensors={sensors}
+    collisionDetection={closestCenter}
+    onDragStart={handleDragStart}
+    onDragEnd={handleDragEnd}
+    onDragCancel={handleDragCancel}
+  >
+    <div className="w-56 border-r border-zinc-800 bg-zinc-900 flex flex-col">
+      {/* ... header ... */}
+
+      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <SortableContext
+          items={layers.map(l => l.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {layers.map((layer) => (
+            <LayerItem key={layer.id} layer={layer} ...>
+              <SortableContext
+                items={layer.objects.map(o => o.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {layer.objects.map((obj) => (
+                  <ObjectItem key={obj.id} object={obj} ... />
+                ))}
+              </SortableContext>
+            </LayerItem>
+          ))}
+        </SortableContext>
+      </div>
+    </div>
+  </DndContext>
+)
+```
+
+#### 4. Sortable Items
+
+**LayerItem.jsx** (lines 1-38):
+```javascript
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+const LayerItem = ({ layer, ... }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: layer.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,  // 40% opacity when dragging
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5" ref={setNodeRef} style={style}>
+      <div
+        {...attributes}
+        {...listeners}
+        className="... cursor-grab active:cursor-grabbing"
+      >
+        {/* ... content ... */}
+      </div>
+    </div>
+  )
+}
+```
+
+**ObjectItem.jsx** (lines 1-30):
+```javascript
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+const ObjectItem = ({ object, ... }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: object.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="... cursor-grab active:cursor-grabbing"
+    >
+      {/* ... content ... */}
+    </div>
+  )
+}
+```
+
+### Visual Feedback Features
+
+1. **40% Opacity**: Dragged item dims to 40% (UX research best practice)
+2. **Cursor States**:
+   - `cursor-grab` on hover
+   - `cursor-grabbing` while dragging
+3. **Smooth Animations**: Built into @dnd-kit, ~100ms transitions
+4. **Drop Indicators**: Automatically handled by @dnd-kit
+5. **Collision Detection**: `closestCenter` strategy for accurate placement
+
+### Files Modified
+
+**Modified**:
+1. `/src/pages/KolEditor.jsx`
+   - Added `order` property to `createFrameShape()` (line 38)
+   - Added `order` property to `createShape()` (line 392)
+   - Added sorting to `frames` useMemo (lines 99-110)
+   - Implemented `handleReorderFrames()` (lines 608-632)
+   - Implemented `handleReorderObjects()` (lines 634-662)
+   - Updated `moveFrame()` to swap order values (lines 588-606)
+   - Added callbacks to `<LayersSidebar>` props (lines 1368-1369)
+
+2. `/src/components/organisms/LayersSidebar.jsx`
+   - Added @dnd-kit imports (lines 1-14)
+   - Added drag state management (lines 38-88)
+   - Wrapped component in `<DndContext>` (lines 90-96)
+   - Added nested `<SortableContext>` for frames and objects (lines 116-158)
+   - Added new props: `onReorderFrames`, `onReorderObjects`
+
+3. `/src/components/molecules/LayerItem.jsx`
+   - Replaced `useRef` with `useSortable` hook (lines 1-29)
+   - Added transform and opacity styling (lines 31-35)
+   - Removed manual `draggable` attribute
+   - Applied `{...attributes}` and `{...listeners}` to draggable element
+
+4. `/src/components/molecules/ObjectItem.jsx`
+   - Replaced `useRef` with `useSortable` hook (lines 1-19)
+   - Added transform and opacity styling (lines 21-25)
+   - Removed manual `draggable` attribute
+   - Applied `{...attributes}` and `{...listeners}` to draggable element
+
+### Architecture Benefits
+
+1. **Declarative API**: @dnd-kit handles low-level drag logic
+2. **Accessibility**: Built-in keyboard support
+3. **Performance**: Optimized animations and transforms
+4. **Maintainability**: Clean separation of concerns
+5. **Flexibility**: Easy to extend with custom drag behaviors
+
+### Behavior
+
+**Frames**:
+- Can be reordered among other frames
+- Cannot be nested (frames are top-level)
+- Dragging updates `order` property
+
+**Objects**:
+- Can be reordered within their parent frame
+- Cannot move between frames (future enhancement)
+- Dragging updates `order` property within frame
+
+**Visual Polish**:
+- ✅ 8px activation distance (prevents accidental drags on click)
+- ✅ 40% opacity for dragging item
+- ✅ Smooth 100ms animations
+- ✅ Grab/grabbing cursor states
+- ✅ Drop indicator lines (automatic)
+- ✅ Undo/redo support (uses existing `pushUndoState`)
+
+---
+
+## Session Update - Continuation
+
+**Additional Time**: ~1 hour
+
+**New Accomplishments**:
+- ✅ Layer sidebar typography fixes
+- ✅ Drag-and-drop layer reordering implemented
+- ✅ @dnd-kit integration complete
+- ✅ UX research from Figma/Penpot patterns applied
+- ✅ Order tracking system added to data model
+- ✅ Smooth animations and visual feedback
+- ✅ Accessibility support (keyboard navigation)
+
+**Technical Decisions**:
+- Chose @dnd-kit over native HTML5 Drag & Drop API (better UX, cleaner API)
+- 8px activation distance to prevent accidental drags
+- 40% opacity follows UX research best practices
+- Nested SortableContext for frame/object hierarchy
+
+**Next Potential Features**:
+1. Drag objects between frames
+2. Drag-to-nest objects into frames from infinite canvas
+3. Visual drop zones for nesting
+4. Multi-select drag (drag multiple layers at once)

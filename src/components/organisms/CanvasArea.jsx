@@ -12,6 +12,7 @@ const CanvasArea = ({
   selectedLayer,
   layers,
   shapes,
+  selectedObject,
   selectedObjectId,
   activeTool,
   stageCursor,
@@ -21,6 +22,11 @@ const CanvasArea = ({
   dragDraft,
   layoutSettings,
   canvasBackground,
+  marqueeSelection,
+  penPoints,
+  penPreviewPoint,
+  nodeEditMode,
+  editingNodeIndex,
   onStagePointerDown,
   onStagePointerMove,
   onStagePointerUp,
@@ -30,6 +36,9 @@ const CanvasArea = ({
   onObjectDragEnd,
   onObjectTransformEnd,
   onBeginArtboardDrag,
+  onNodeDragStart,
+  onNodeDrag,
+  onNodeDragEnd,
   renderObject,
   renderDraftGrid
 }) => {
@@ -106,7 +115,8 @@ const CanvasArea = ({
             <KonvaLayer>
               {/* Render frame backgrounds and shapes inside frames */}
               {layers.flatMap((layer) => {
-                const frameBackground = (
+                // Only render background for actual frames, not top-level objects
+                const frameBackground = layer.type === 'frame' ? (
                   <Rect
                     key={`frame-bg-${layer.id}`}
                     x={layer.x}
@@ -119,9 +129,9 @@ const CanvasArea = ({
                     strokeWidth={0.5}
                     onPointerDown={(e) => onArtboardBackgroundClick(e, layer.id)}
                   />
-                )
+                ) : null
                 const shapes = layer.visible ? layer.objects.filter((obj) => obj.visible).map((obj) => renderObject(layer.id, obj)) : []
-                return [frameBackground, ...shapes]
+                return [frameBackground, ...shapes].filter(Boolean)
               })}
 
               {/* Render shapes on infinite canvas (no frame) */}
@@ -131,6 +141,132 @@ const CanvasArea = ({
               {renderDraftGrid()}
 
               <DraftPreview draft={dragDraft} />
+
+              {/* Render marquee selection rectangle */}
+              {marqueeSelection && (() => {
+                const { start, end } = marqueeSelection
+                const x = Math.min(start.x, end.x)
+                const y = Math.min(start.y, end.y)
+                const width = Math.abs(end.x - start.x)
+                const height = Math.abs(end.y - start.y)
+                return (
+                  <Rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    stroke="#3b82f6"
+                    strokeWidth={1}
+                    fill="rgba(59, 130, 246, 0.1)"
+                    dash={[5, 5]}
+                    listening={false}
+                  />
+                )
+              })()}
+
+              {/* Render pen tool preview */}
+              {penPoints && penPoints.length > 0 && (() => {
+                // Draw lines connecting the points
+                const points = []
+                penPoints.forEach(pt => {
+                  points.push(pt.x, pt.y)
+                })
+
+                // Add preview point if exists
+                if (penPreviewPoint) {
+                  points.push(penPreviewPoint.x, penPreviewPoint.y)
+                }
+
+                return (
+                  <>
+                    {/* Draw the path */}
+                    <Line
+                      points={points}
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      lineCap="round"
+                      lineJoin="round"
+                      listening={false}
+                    />
+                    {/* Draw points as circles */}
+                    {penPoints.map((pt, i) => (
+                      <Circle
+                        key={i}
+                        x={pt.x}
+                        y={pt.y}
+                        radius={4}
+                        fill="#3b82f6"
+                        stroke="white"
+                        strokeWidth={2}
+                        listening={false}
+                      />
+                    ))}
+                    {/* Draw first point larger to indicate where to close */}
+                    {penPoints.length >= 2 && (
+                      <Circle
+                        x={penPoints[0].x}
+                        y={penPoints[0].y}
+                        radius={6}
+                        fill="transparent"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        listening={false}
+                      />
+                    )}
+                  </>
+                )
+              })()}
+
+              {/* Render vector nodes in node edit mode */}
+              {nodeEditMode && selectedObject && selectedObject.meta && selectedObject.meta.points && (() => {
+                const points = selectedObject.meta.points
+                const numPoints = points.length / 2
+                const nodeElements = []
+
+                // Draw selection outline
+                nodeElements.push(
+                  <Line
+                    key="selection-outline"
+                    points={points}
+                    x={selectedObject.x}
+                    y={selectedObject.y}
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    dash={[5, 5]}
+                    closed={selectedObject.meta.closed}
+                    listening={false}
+                  />
+                )
+
+                // Draw individual nodes
+                for (let i = 0; i < numPoints; i++) {
+                  const x = selectedObject.x + points[i * 2]
+                  const y = selectedObject.y + points[i * 2 + 1]
+
+                  nodeElements.push(
+                    <Circle
+                      key={`node-${i}`}
+                      x={x}
+                      y={y}
+                      radius={5}
+                      fill="white"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      draggable
+                      onDragStart={() => onNodeDragStart(i)}
+                      onDragMove={(e) => {
+                        const relX = e.target.x() - selectedObject.x
+                        const relY = e.target.y() - selectedObject.y
+                        onNodeDrag(i, relX, relY)
+                      }}
+                      onDragEnd={onNodeDragEnd}
+                    />
+                  )
+                }
+
+                return <>{nodeElements}</>
+              })()}
+
               <Transformer ref={transformerRef} rotateEnabled />
             </KonvaLayer>
           </Stage>

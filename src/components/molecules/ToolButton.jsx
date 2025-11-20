@@ -54,7 +54,7 @@ const ToolButton = ({
       {/* Dropdown menu */}
       {showDropdown && hasSubtools && (
         <div
-          className="absolute top-full mt-1 bg-zinc-900 border border-zinc-800 rounded shadow-lg py-1 z-50 min-w-[120px]"
+          className="absolute top-full mt-1 bg-zinc-900 border border-zinc-800 rounded shadow-lg py-1 z-50 w-fit"
           style={{ left: dropdownLeft }}
         >
           {tool.subtools.map((subtool) => (
@@ -78,7 +78,7 @@ const ToolButton = ({
               ) : (
                 <Icon name={subtool.icon.name} folder={subtool.icon.folder} size={16} />
               )}
-              <span className="text-sm">{subtool.label}</span>
+              <span className="text-sm whitespace-nowrap">{subtool.label}</span>
             </button>
           ))}
         </div>

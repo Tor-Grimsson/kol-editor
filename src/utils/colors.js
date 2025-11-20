@@ -1,6 +1,31 @@
 import { clamp } from './geometry'
 
 /**
+ * Converts rgba string to hex color
+ */
+export const rgbaToHex = (rgba) => {
+  if (!rgba || typeof rgba !== 'string') return '#000000'
+
+  // If it's already a hex color, return it
+  if (rgba.startsWith('#')) return rgba
+
+  // Parse rgba string like 'rgba(255, 255, 255, 0.02)'
+  const match = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/)
+  if (!match) return '#000000'
+
+  const r = parseInt(match[1])
+  const g = parseInt(match[2])
+  const b = parseInt(match[3])
+
+  const toHex = (n) => {
+    const hex = clamp(n, 0, 255).toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase()
+}
+
+/**
  * Converts hex color to HSB (Hue, Saturation, Brightness)
  */
 export const hexToHsb = (hex) => {

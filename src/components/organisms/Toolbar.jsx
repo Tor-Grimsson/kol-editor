@@ -1,18 +1,20 @@
 import { useRef } from 'react'
 import ToolButton from '../molecules/ToolButton'
 import Separator from '../atoms/Separator'
+import Icon from '../icons/Icon'
 import { TOOLBAR_LAYOUT, TOOL_SUBMENUS, FILTER_OPTIONS } from '../../constants/editor'
 
 // Icon map using tools-name folder structure
 const iconMap = {
   select: { folder: 'tools-name/other', name: 'pointer-selector' },
-  frame: { folder: 'tools-name/shape-align', name: 'square' },
+  frame: { folder: 'tools-name/other', name: 'crop' },
   zoom: { folder: 'tools-name/other', name: 'zoom-magnify' },
-  crop: { folder: 'tools-name/other', name: 'crop' },
   flipX: { folder: 'tools-name/shape-align', name: 'flip-x' },
   flipY: { folder: 'tools-name/shape-align', name: 'flip-y' },
   rotateLeft: { folder: 'tools-name/other', name: 'turn-90-left' },
   rotateRight: { folder: 'tools-name/other', name: 'turn-90-right' },
+  align: { folder: 'tools-name/shape-align', name: 'auto-layout' },
+  pen: { folder: 'tools-name/shape-align', name: 'pen' },
   draw: { folder: 'tools-name/shape-align', name: 'pencil' },
   shape: { folder: 'tools-name/shape-align', name: 'rectangle' },
   text: { folder: 'tools-name/other', name: 'font=03' },
@@ -71,26 +73,27 @@ const Toolbar = ({
         {TOOLBAR_LAYOUT.map((item) => renderToolButton(item))}
         <button
           type="button"
-          className={`ml-auto px-3 h-9 rounded border border-zinc-700 ${
+          className={`ml-auto px-3 h-9 rounded border border-zinc-700 flex items-center gap-2 ${
             filterMenuOpen ? 'bg-blue-600 border-blue-500' : 'bg-zinc-900 hover:bg-zinc-800'
           }`}
           onClick={() => setFilterMenuOpen((prev) => !prev)}
         >
-          Filters �
+          Filters <Icon name="auto-layout" folder="tools-name/shape-align" size={16} />
         </button>
       </div>
 
       {filterMenuOpen && (
         <div className="absolute top-full right-4 mt-1 z-10 rounded border border-zinc-800 bg-zinc-900 shadow-lg min-w-[180px]">
-          <div className="px-3 py-2 text-zinc-400 uppercase tracking-wide">Filters</div>
-          <div className="flex flex-col">
+          <div className="flex flex-col py-1">
             {FILTER_OPTIONS.map((option) => (
               <button
                 key={option.id}
                 type="button"
-                className="px-3 py-1 text-left hover:bg-zinc-800 text-zinc-200"
+                className="text-left hover:bg-zinc-800 text-zinc-200 flex items-center gap-2"
+                style={{ padding: '8px 12px' }}
                 onClick={() => onFilterSelect(option.id)}
               >
+                <Icon name={option.icon.name} folder={option.icon.folder} size={16} />
                 {option.label}
               </button>
             ))}

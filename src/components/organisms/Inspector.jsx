@@ -3,6 +3,7 @@ import ColorPicker from '../molecules/ColorPicker'
 import RangeSlider from '../molecules/RangeSlider'
 import Input from '../atoms/Input'
 import Button from '../atoms/Button'
+import Icon from '../icons/Icon'
 
 const Inspector = ({
   selectedLayer,
@@ -10,12 +11,14 @@ const Inspector = ({
   canvasBackground,
   onLayerNameChange,
   onLayerBackgroundChange,
+  onLayerPropertyChange,
   onObjectPropertyChange,
   onObjectColorChange,
   onObjectOpacityChange,
   onObjectTextChange,
   inspectorFilter,
-  setInspectorFilter
+  setInspectorFilter,
+  onExpandBooleanGroup
 }) => {
   const selectedOpacityPercent = Math.round((selectedObject?.opacity ?? 1) * 100)
 
@@ -26,8 +29,8 @@ const Inspector = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
-        {/* Canvas Name - Only when layer selected */}
-        {selectedLayer && (
+        {/* Canvas Name - Only when layer selected and no object selected */}
+        {selectedLayer && !selectedObject && (
           <div className="flex flex-col gap-1">
             <span className="text-zinc-500">Canvas name</span>
             <Input
@@ -39,30 +42,42 @@ const Inspector = ({
           </div>
         )}
 
-        {/* Canvas Background - ALWAYS SHOW */}
-        <div className="flex flex-col gap-1">
-          <span className="text-zinc-500">Canvas background</span>
-          <Input
-            type="color"
-            value={selectedLayer?.background ?? canvasBackground}
-            onChange={(e) => onLayerBackgroundChange && onLayerBackgroundChange(e.target.value)}
-            className="w-16 h-8 border border-zinc-700 rounded bg-transparent"
+        {/* Global Canvas Background - Show when nothing is selected */}
+        {!selectedLayer && !selectedObject && (
+          <ColorPicker
+            color={canvasBackground}
+            onChange={onLayerBackgroundChange}
           />
-        </div>
+        )}
 
-        {/* Position and Size - Only show for selected objects */}
-        {selectedObject && (
+        {/* Position and Size - Show for canvas (when no object selected) or selected object */}
+        {(selectedObject || selectedLayer) && (
           <div className="grid grid-cols-2 gap-2">
-            {['x', 'y', 'width', 'height', 'rotation'].map((prop) => (
-              <PropertyInput
-                key={prop}
-                label={prop}
-                type="number"
-                step={prop === 'rotation' ? 1 : 5}
-                value={selectedObject[prop]}
-                onChange={(e) => onObjectPropertyChange(prop, e.target.value)}
-              />
-            ))}
+            {['x', 'y', 'width', 'height', 'rotation'].map((prop) => {
+              const target = selectedObject || selectedLayer
+              const value = target[prop]
+              // Round position/size values to whole pixels
+              const displayValue = ['x', 'y', 'width', 'height'].includes(prop)
+                ? Math.round(value)
+                : value
+
+              return (
+                <PropertyInput
+                  key={prop}
+                  label={prop}
+                  type="number"
+                  step={prop === 'rotation' ? 1 : 5}
+                  value={displayValue}
+                  onChange={(e) => {
+                    if (selectedObject) {
+                      onObjectPropertyChange(prop, e.target.value)
+                    } else if (selectedLayer && onLayerPropertyChange) {
+                      onLayerPropertyChange(prop, e.target.value)
+                    }
+                  }}
+                />
+              )
+            })}
           </div>
         )}
 
@@ -101,12 +116,12 @@ const Inspector = ({
           </div>
         )}
 
-        {/* Color Picker - Only for selected objects */}
-        {selectedObject && (
+        {/* Color Picker - Show for canvas or selected object */}
+        {(selectedObject || (selectedLayer && !selectedObject)) && (
           <div className="border-t border-zinc-800 pt-3">
             <ColorPicker
-              color={selectedObject.color || '#000000'}
-              onChange={onObjectColorChange}
+              color={selectedObject ? (selectedObject.color || '#000000') : selectedLayer.background}
+              onChange={selectedObject ? onObjectColorChange : onLayerBackgroundChange}
             />
           </div>
         )}
@@ -124,10 +139,24 @@ const Inspector = ({
           </div>
         )}
 
+        {/* Boolean Group Controls */}
+        {selectedObject?.type === 'boolean' && (
+          <div className="border-t border-zinc-800 pt-3">
+            <Button
+              variant="primary"
+              onClick={onExpandBooleanGroup}
+              className="w-full"
+            >
+              Expand Vector Shape
+            </Button>
+          </div>
+        )}
+
         {/* Filter Controls */}
         {inspectorFilter && (
           <div className="border-t border-zinc-800 pt-3 space-y-2">
-            <div className="text-zinc-500 uppercase tracking-wide">
+            <div className="text-zinc-500 uppercase tracking-wide flex items-center gap-2">
+              <Icon name="auto-layout" folder="tools-name/shape-align" size={12} />
               Filter Controls ({inspectorFilter.type})
             </div>
             <div className="flex items-center gap-2">

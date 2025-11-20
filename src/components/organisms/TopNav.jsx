@@ -1,4 +1,5 @@
 import Button from '../atoms/Button'
+import Icon from '../icons/Icon'
 
 const TopNav = ({
   onCanvasSizeClick,
@@ -13,27 +14,27 @@ const TopNav = ({
       <div className="flex items-center gap-2">
         <Button
           square
-          variant="default"
+          variant="ghost"
           title="Canvas Size"
           onClick={onCanvasSizeClick}
         >
-          �
+          <Icon name="layout" folder="tools-name/shape-align" size={20} />
         </Button>
         <Button
           square
-          variant="default"
+          variant="ghost"
           title="Clear Document"
           onClick={onClearDocument}
         >
-          +
+          <Icon name="corner-diag" folder="tools-name/shape-align" size={20} />
         </Button>
         <Button
           square
-          variant="default"
+          variant="ghost"
           title="Load (pending)"
           disabled
         >
-          =�
+          <Icon name="photo-03" folder="a1" size={20} />
         </Button>
       </div>
     </nav>

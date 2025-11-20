@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 const SIZE_MAP = {
   sm: { fontSize: 11, paddingY: 12, paddingX: 24, radius: 20, icon: 10 },
   md: { fontSize: 12, paddingY: 14, paddingX: 24, radius: 22, icon: 12 },
-  lg: { fontSize: 14, paddingY: 16, paddingX: 24, radius: 24, icon: 14 }
+  lg: { fontSize: 12, paddingY: 16, paddingX: 24, radius: 24, icon: 14 }
 }
 
 const Dropdown = ({
@@ -96,7 +96,7 @@ const Dropdown = ({
       style={{ zIndex: isOpen ? 100 : 50 }}
     >
       <div
-        className="min-w-[180px]"
+        className="min-w-[200px]"
           style={{
             border: '1px solid var(--kol-border-default)',
             borderRadius: isOpen

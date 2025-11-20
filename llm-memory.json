@@ -4,11 +4,11 @@
   ],
   "active_objectives": [
     {
-      "id": "atomic-component-refactor",
-      "summary": "✅ COMPLETE: Renamed KonvaLayerEditor → KolEditor, integrated all 5 organisms. Reduced from 1654 → 1040 lines (37% reduction). All 16 atomic components with showcase pages.",
+      "id": "dnd-reordering-fix",
+      "summary": "✅ COMPLETE: Fixed drag-and-drop reordering bugs. Implemented standard dnd-kit index-based pattern. Objects can now reorder above/below canvases freely. Fixed frameId overwrite bug.",
       "owner": "assistant",
       "status": "completed",
-      "last_updated": "2025-11-18T03:40Z"
+      "last_updated": "2025-11-20T10:30Z"
     }
   ],
   "implementation_notes": [
@@ -19,9 +19,11 @@
     "KolEditor (src/pages/KolEditor.jsx, 1040 lines) now organism-composed. Integrated all 5 organisms. Reduced from 1654 lines (37% code reduction).",
     "Dependencies: React 19, react-dom, konva, react-konva, react-router-dom, plus dev tooling (Vite, Tailwind, ESLint).",
     "Editor features: toolbar with tool dropdowns, layer/canvas sidebar, property inspector, rulers, transform handles, multi-canvas support, undo/redo (Cmd+Z/Shift+Z), Alt-drag cloning, zoom-at-pointer.",
-    "Full-screen layout with TopNav → 3-column flex (LayersSidebar | Toolbar+CanvasArea | Inspector). No rounded corners."
+    "Full-screen layout with TopNav → 3-column flex (LayersSidebar | Toolbar+CanvasArea | Inspector). No rounded corners.",
+    "Drag-and-drop: Uses @dnd-kit/core with standard index-based pattern. Single flattened SortableContext, closestCenter collision detection. Before/after determined by index comparison (activeIndex > overIndex = moving up = insert before)."
   ],
   "decision_log": [
+    "2025-11-20: Fixed drag-and-drop reordering - Switched from nested SortableContext to single flat context with index-based position detection (standard dnd-kit pattern). Fixed frameId overwrite bug. Unified top-level list (objects + canvases). See docs/llm-context-protocol/session-logs/2025-11-20-dnd-reordering-sessionlog.md",
     "2025-11-18: Phase 5 Integration complete - Renamed KonvaLayerEditor → KolEditor, integrated all 5 organisms. Reduced from 1654 → 1040 lines (37% reduction). Atomic design refactor complete.",
     "2025-11-18: Built complete atomic design component library (16 components) with interactive showcase pages at /components routes.",
     "2025-11-18: Moved icons from public/icons to src/components/icons/svg for bundling with Vite; updated Icon.jsx to use import.meta.glob.",

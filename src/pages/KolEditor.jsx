@@ -6,7 +6,9 @@ import {
   RegularPolygon,
   Star,
   Text as KonvaText,
+  Shape,
 } from 'react-konva'
+import polygonClipping from 'polygon-clipping'
 
 import TopNav from '../components/organisms/TopNav'
 import Toolbar from '../components/organisms/Toolbar'
@@ -35,6 +37,7 @@ const createFrameShape = (index, overrides = {}) => ({
   children: [],
   frameId: null,
   parentId: null,
+  order: overrides.order ?? index,
   ...overrides,
 })
 
@@ -57,6 +60,11 @@ const KolEditor = () => {
   const [inspectorFilter, setInspectorFilter] = useState(null)
   const [layoutSettings, setLayoutSettings] = useState({ columns: 1, rows: 1, gutter: 0, showGrid: false })
   const [toolSelections, setToolSelections] = useState({})
+  const [marqueeSelection, setMarqueeSelection] = useState(null) // { start: {x, y}, end: {x, y}, clickedFrameId?: string }
+  const [penPoints, setPenPoints] = useState([]) // Array of {x, y} points for pen tool
+  const [penPreviewPoint, setPenPreviewPoint] = useState(null) // Current mouse position for preview line
+  const [nodeEditMode, setNodeEditMode] = useState(false) // Whether node editing mode is active
+  const [editingNodeIndex, setEditingNodeIndex] = useState(null) // Index of node being dragged
 
   const stageRef = useRef(null)
   const transformerRef = useRef(null)
@@ -95,18 +103,36 @@ const KolEditor = () => {
   }, [selectedFrame])
 
   // Get all frames (for sidebar) with populated children
+  // Get all top-level items (frames and objects) sorted by order
   const frames = useMemo(() => {
-    return Object.values(shapes)
-      .filter(shape => shape.type === 'frame')
-      .map(frame => ({
-        ...frame,
-        objects: frame.children.map(id => shapes[id]).filter(Boolean)
-      }))
+    const result = Object.values(shapes)
+      .filter(shape => !shape.frameId && !shape.parentId) // Top-level: no parent frame or boolean group
+      .map(item => {
+        if (item.type === 'frame' || item.type === 'boolean') {
+          // Frame or Boolean group: include its children
+          return {
+            ...item,
+            objects: item.children
+              .map(id => shapes[id])
+              .filter(Boolean)
+              .sort((a, b) => a.order - b.order)
+          }
+        } else {
+          // Regular object at top level
+          return {
+            ...item,
+            objects: [] // Objects don't have children
+          }
+        }
+      })
+      .sort((a, b) => a.order - b.order)
+
+    return result
   }, [shapes])
 
-  // Get shapes on infinite canvas (not in any frame)
+  // Legacy: kept for backward compatibility (now empty since all are in frames)
   const infiniteCanvasShapes = useMemo(() => {
-    return Object.values(shapes).filter(shape => shape.type !== 'frame' && !shape.frameId)
+    return []
   }, [shapes])
 
   // Get visible shapes for rendering (children of selected frame)
@@ -149,6 +175,13 @@ const KolEditor = () => {
     const transformer = transformerRef.current
     if (!transformer) return
 
+    // Hide transformer in node edit mode
+    if (nodeEditMode) {
+      transformer.nodes([])
+      transformer.getLayer()?.batchDraw()
+      return
+    }
+
     // Handle multi-select
     if (selectedShapeIds.length > 0) {
       const nodes = selectedShapeIds
@@ -173,7 +206,7 @@ const KolEditor = () => {
       transformer.nodes([])
       transformer.getLayer()?.batchDraw()
     }
-  }, [selectedShapeId, selectedShapeIds, selectedObject])
+  }, [selectedShapeId, selectedShapeIds, selectedObject, nodeEditMode])
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -273,22 +306,108 @@ const KolEditor = () => {
       if (event.key === 'Escape') {
         setPendingInsert(null)
         setDragDraft(null)
-        setSelectedShapeId(null)
-        setSelectedShapeIds([])
+        // Cancel pen tool
+        if (activeTool === 'pen') {
+          setPenPoints([])
+          setPenPreviewPoint(null)
+        }
+        // Exit node edit mode
+        if (nodeEditMode) {
+          setNodeEditMode(false)
+        } else {
+          setSelectedShapeId(null)
+          setSelectedShapeIds([])
+        }
+      }
+
+      if (event.key === 'Enter' && activeTool === 'pen' && penPoints.length >= 2) {
+        finalizePenPath()
+        event.preventDefault()
       }
       if (event.key === 'v' || event.key === 'V') {
         setActiveTool('select')
+        setNodeEditMode(false)
         setDropdownState(dropdownDefaults)
         setPendingInsert(null)
+        setPenPoints([])
+        setPenPreviewPoint(null)
+      }
+      if (event.key === 'a' || event.key === 'A') {
+        setActiveTool('select')
+        setNodeEditMode(true)
+        setDropdownState(dropdownDefaults)
+        setPendingInsert(null)
+        setPenPoints([])
+        setPenPreviewPoint(null)
+      }
+      if (event.key === 'p' || event.key === 'P') {
+        setActiveTool('pen')
+        setDropdownState(dropdownDefaults)
+        setPendingInsert(null)
+        setPenPoints([])
+        setPenPreviewPoint(null)
       }
       if (event.key === 'r' || event.key === 'R') {
         handleShapeInsert('rect')
         setActiveTool('shape')
+        setPenPoints([])
+        setPenPreviewPoint(null)
       }
       if (event.key === 'f' || event.key === 'F') {
         setActiveTool('frame')
         setDropdownState(dropdownDefaults)
         setPendingInsert(null)
+        setPenPoints([])
+        setPenPreviewPoint(null)
+      }
+
+      // Opacity shortcuts: 1-9 = 10%-90%, 0 = 100%, 00 (double zero) = 0%
+      if (/^[0-9]$/.test(event.key) && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const num = parseInt(event.key)
+        const now = Date.now()
+        const lastZeroTime = window._lastZeroKeyTime || 0
+
+        // Check for double-zero (00) within 300ms
+        if (num === 0 && (now - lastZeroTime) < 300) {
+          // Set opacity to 0%
+          if (selectedShapeIds.length > 0) {
+            const newShapes = { ...shapes }
+            selectedShapeIds.forEach(shapeId => {
+              if (shapes[shapeId] && shapes[shapeId].type !== 'frame') {
+                newShapes[shapeId] = { ...shapes[shapeId], opacity: 0 }
+              }
+            })
+            setShapes(newShapes)
+            pushUndoState(newShapes)
+          } else if (selectedObject) {
+            updateShape(selectedObject.id, { opacity: 0 })
+          }
+          delete window._lastZeroKeyTime
+          event.preventDefault()
+          return
+        }
+
+        // Track zero keypress time for double-zero detection
+        if (num === 0) {
+          window._lastZeroKeyTime = now
+        }
+
+        // 1-9 = 10%-90%, 0 = 100%
+        const opacity = num === 0 ? 1 : num / 10
+
+        if (selectedShapeIds.length > 0) {
+          const newShapes = { ...shapes }
+          selectedShapeIds.forEach(shapeId => {
+            if (shapes[shapeId] && shapes[shapeId].type !== 'frame') {
+              newShapes[shapeId] = { ...shapes[shapeId], opacity }
+            }
+          })
+          setShapes(newShapes)
+          pushUndoState(newShapes)
+        } else if (selectedObject) {
+          updateShape(selectedObject.id, { opacity })
+        }
+        event.preventDefault()
       }
     }
     const handleKeyUp = (event) => {
@@ -339,6 +458,7 @@ const KolEditor = () => {
       children: [],
       frameId: overrides.frameId ?? null,
       parentId: overrides.parentId ?? null,
+      order: overrides.order ?? nextShapeIdRef.current,
       // Text-specific
       text: overrides.text ?? 'JetBrains Mono',
       fontFamily: overrides.fontFamily ?? 'JetBrains Mono, monospace',
@@ -539,8 +659,259 @@ const KolEditor = () => {
     const target = index + direction
     if (target < 0 || target >= framesList.length) return
 
-    // For now, this is a no-op since we don't have frame ordering in flat map
-    // Could add a `order` property to frames if needed
+    // Swap order values
+    const frame1 = framesList[index]
+    const frame2 = framesList[target]
+
+    pushUndoState({
+      ...shapes,
+      [frame1.id]: { ...frame1, order: frame2.order },
+      [frame2.id]: { ...frame2, order: frame1.order }
+    })
+  }
+
+  const handleReorderFrames = (activeId, overId) => {
+    if (activeId === overId) return
+
+    const framesList = Object.values(shapes)
+      .filter(s => s.type === 'frame')
+      .sort((a, b) => a.order - b.order)
+
+    const oldIndex = framesList.findIndex(f => f.id === activeId)
+    const newIndex = framesList.findIndex(f => f.id === overId)
+
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Reorder the array
+    const reordered = [...framesList]
+    const [removed] = reordered.splice(oldIndex, 1)
+    reordered.splice(newIndex, 0, removed)
+
+    // Update order properties
+    const updates = {}
+    reordered.forEach((frame, index) => {
+      updates[frame.id] = { ...frame, order: index }
+    })
+
+    pushUndoState({ ...shapes, ...updates })
+  }
+
+  const handleReorderObjects = (activeId, overId, frameId) => {
+    if (activeId === overId) return
+
+    const frame = shapes[frameId]
+    if (!frame) return
+
+    const objectsList = frame.children
+      .map(id => shapes[id])
+      .filter(Boolean)
+      .sort((a, b) => a.order - b.order)
+
+    const oldIndex = objectsList.findIndex(obj => obj.id === activeId)
+    const newIndex = objectsList.findIndex(obj => obj.id === overId)
+
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Reorder the array
+    const reordered = [...objectsList]
+    const [removed] = reordered.splice(oldIndex, 1)
+    reordered.splice(newIndex, 0, removed)
+
+    // Update order properties
+    const updates = {}
+    reordered.forEach((obj, index) => {
+      updates[obj.id] = { ...obj, order: index }
+    })
+
+    pushUndoState({ ...shapes, ...updates })
+  }
+
+  const handleMoveObjectToFrame = (objectId, targetFrameId) => {
+    const object = shapes[objectId]
+    if (!object || object.type === 'frame') return
+
+    const targetFrame = shapes[targetFrameId]
+    if (!targetFrame || targetFrame.type !== 'frame') return
+
+    // Remove from old frame if it had one
+    const oldFrameId = object.frameId
+    const updates = {}
+
+    if (oldFrameId) {
+      const oldFrame = shapes[oldFrameId]
+      updates[oldFrameId] = {
+        ...oldFrame,
+        children: oldFrame.children.filter(id => id !== objectId)
+      }
+    }
+
+    // Add to new frame
+    const newOrder = targetFrame.children.length
+    updates[targetFrameId] = {
+      ...targetFrame,
+      children: [...targetFrame.children, objectId]
+    }
+    updates[objectId] = {
+      ...object,
+      frameId: targetFrameId,
+      parentId: targetFrameId,
+      order: newOrder
+    }
+
+    pushUndoState({ ...shapes, ...updates })
+  }
+
+  const handleNestFrameInFrame = (frameId, targetFrameId) => {
+    const frame = shapes[frameId]
+    const targetFrame = shapes[targetFrameId]
+
+    if (!frame || !targetFrame || frame.type !== 'frame' || targetFrame.type !== 'frame') return
+    if (frameId === targetFrameId) return
+
+    // Add frame as child of target
+    const newOrder = targetFrame.children.length
+    const updates = {
+      [targetFrameId]: {
+        ...targetFrame,
+        children: [...targetFrame.children, frameId]
+      },
+      [frameId]: {
+        ...frame,
+        frameId: targetFrameId,
+        parentId: targetFrameId,
+        order: newOrder
+      }
+    }
+
+    pushUndoState({ ...shapes, ...updates })
+  }
+
+  const handleMoveToInfiniteCanvas = (itemId) => {
+    const item = shapes[itemId]
+    if (!item) return
+
+    const updates = {}
+
+    // Remove from parent frame if it has one
+    if (item.frameId) {
+      const parentFrame = shapes[item.frameId]
+      if (parentFrame) {
+        updates[item.frameId] = {
+          ...parentFrame,
+          children: parentFrame.children.filter(id => id !== itemId)
+        }
+      }
+    }
+
+    // Update item to be frameless
+    updates[itemId] = {
+      ...item,
+      frameId: null,
+      parentId: null,
+      order: Object.keys(shapes).length // Put at end
+    }
+
+    pushUndoState({ ...shapes, ...updates })
+  }
+
+  const handleInsertItem = (activeId, overId, position) => {
+    const activeItem = shapes[activeId]
+    const overItem = shapes[overId]
+
+    if (!activeItem || !overItem) return
+
+    // The target parent is where the overItem lives
+    const targetParentId = overItem.frameId
+    const activeParentId = activeItem.frameId
+
+    // Get the list of items at the target level
+    let targetLevelItems
+    if (targetParentId) {
+      // Target is inside a frame
+      const targetFrame = shapes[targetParentId]
+      targetLevelItems = targetFrame.children
+        .map(id => shapes[id])
+        .filter(Boolean)
+        .sort((a, b) => a.order - b.order)
+    } else {
+      // Target is at top level
+      targetLevelItems = Object.values(shapes)
+        .filter(s => !s.frameId)
+        .sort((a, b) => a.order - b.order)
+    }
+
+    // Find positions in target list
+    const overIndex = targetLevelItems.findIndex(item => item.id === overId)
+    if (overIndex === -1) return
+
+    // Calculate insert position
+    const insertIndex = position === 'before' ? overIndex : overIndex + 1
+
+    // Remove active item from target list if it's already there
+    const activeIndexInTarget = targetLevelItems.findIndex(item => item.id === activeId)
+    let reordered = [...targetLevelItems]
+
+    if (activeIndexInTarget !== -1) {
+      // Already in target list, just reorder
+      const [removed] = reordered.splice(activeIndexInTarget, 1)
+      const finalIndex = activeIndexInTarget < insertIndex ? insertIndex - 1 : insertIndex
+      reordered.splice(finalIndex, 0, removed)
+    } else {
+      // Not in target list, insert it
+      reordered.splice(insertIndex, 0, activeItem)
+    }
+
+    // Build updates object
+    const updates = {}
+
+    // Update the active item's parent and order
+    updates[activeId] = {
+      ...activeItem,
+      frameId: targetParentId || null,
+      parentId: targetParentId || null,
+      order: reordered.findIndex(item => item.id === activeId)
+    }
+
+    // Update order for all items in target level
+    reordered.forEach((item, index) => {
+      if (item.id === activeId) {
+        // Already updated above with new frameId, just update order
+        updates[item.id] = { ...updates[item.id], order: index }
+      } else {
+        // Other items: only update order if they're already in this level
+        updates[item.id] = { ...item, order: index }
+      }
+    })
+
+    // Update target frame's children array if applicable
+    if (targetParentId) {
+      const targetFrame = shapes[targetParentId]
+      updates[targetParentId] = {
+        ...targetFrame,
+        children: reordered.map(item => item.id)
+      }
+    }
+
+    // Remove from old parent if it had one
+    if (activeParentId && activeParentId !== targetParentId) {
+      const oldFrame = shapes[activeParentId]
+      updates[activeParentId] = {
+        ...oldFrame,
+        children: oldFrame.children.filter(id => id !== activeId)
+      }
+
+      // Update order for remaining items in old frame
+      oldFrame.children
+        .filter(id => id !== activeId)
+        .map(id => shapes[id])
+        .filter(Boolean)
+        .sort((a, b) => a.order - b.order)
+        .forEach((item, index) => {
+          updates[item.id] = { ...updates[item.id], ...item, order: index }
+        })
+    }
+
+    pushUndoState({ ...shapes, ...updates })
   }
 
   const handleToolbarButton = (toolId) => {
@@ -550,6 +921,22 @@ const KolEditor = () => {
         setDropdownState(dropdownDefaults) // Close dropdown immediately
         handleToolOption(parentTool, toolId)
         return
+      }
+    }
+
+    // Clear pen points when switching tools
+    if (toolId !== 'pen') {
+      setPenPoints([])
+      setPenPreviewPoint(null)
+    }
+
+    // Exit node edit mode when switching away from select tool
+    if (toolId !== 'select') {
+      setNodeEditMode(false)
+    } else {
+      // Clicking select tool when already in select tool exits node edit mode
+      if (activeTool === 'select' && nodeEditMode) {
+        setNodeEditMode(false)
       }
     }
 
@@ -597,6 +984,78 @@ const KolEditor = () => {
     setStagePosition(newPos)
   }
 
+  const handlePenClick = (pointer, evt) => {
+    // Double-click to close the path
+    if (evt && evt.detail === 2 && penPoints.length >= 2) {
+      finalizePenPath()
+      return
+    }
+
+    // Check if clicking near the first point to close the path
+    if (penPoints.length >= 3) {
+      const firstPoint = penPoints[0]
+      const distance = Math.sqrt(
+        Math.pow(pointer.x - firstPoint.x, 2) + Math.pow(pointer.y - firstPoint.y, 2)
+      )
+      // If within 10px of first point, close the path
+      if (distance < 10) {
+        finalizePenPath()
+        return
+      }
+    }
+
+    // Add new point
+    setPenPoints(prev => [...prev, { x: pointer.x, y: pointer.y }])
+  }
+
+  const finalizePenPath = () => {
+    if (penPoints.length < 2) {
+      setPenPoints([])
+      setPenPreviewPoint(null)
+      return
+    }
+
+    // Create a path shape from the points
+    const frameId = selectedFrame?.id ?? null
+
+    // Calculate bounding box
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    penPoints.forEach(pt => {
+      minX = Math.min(minX, pt.x)
+      minY = Math.min(minY, pt.y)
+      maxX = Math.max(maxX, pt.x)
+      maxY = Math.max(maxY, pt.y)
+    })
+
+    const width = maxX - minX
+    const height = maxY - minY
+
+    // Convert points to relative coordinates
+    const relativePoints = []
+    penPoints.forEach(pt => {
+      relativePoints.push(pt.x - minX, pt.y - minY)
+    })
+
+    const position = {
+      x: minX,
+      y: minY,
+      width: Math.max(10, width),
+      height: Math.max(10, height),
+      rotation: 0
+    }
+
+    const shape = createShape('path', {
+      position,
+      frameId,
+      meta: { points: relativePoints, closed: true }
+    })
+
+    addShapeToFrame(frameId, shape)
+    setPenPoints([])
+    setPenPreviewPoint(null)
+    setActiveTool('select')
+  }
+
   const handleStagePointerDown = (e) => {
     const stage = e.target.getStage()
     const pointer = stage.getPointerPosition()
@@ -615,15 +1074,21 @@ const KolEditor = () => {
       return
     }
 
+    if (activeTool === 'pen') {
+      // Handle pen tool clicks
+      handlePenClick(pointer, e.evt)
+      return
+    }
+
     if (activeTool === 'zoom') {
       handleZoomAtPointer(e.evt?.altKey ? 'out' : 'in')
       return
     }
 
     if (activeTool === 'select' && e.target === stage) {
-      // Clicked on empty stage - deselect everything
-      setSelectedShapeId(null)
-      setSelectedShapeIds([])
+      // Start marquee selection
+      setMarqueeSelection({ start: pointer, end: pointer })
+      // Don't deselect yet - wait for mouse up to see if it was a drag or click
     }
   }
 
@@ -641,15 +1106,27 @@ const KolEditor = () => {
     }
 
     e.cancelBubble = true
-    // Clicked on frame background - select the frame itself
-    setSelectedShapeId(frameId)
-    setSelectedShapeIds([])
+
+    // Start marquee selection (same as stage click)
+    const stage = e.target.getStage()
+    const pointer = stage.getPointerPosition()
+    setMarqueeSelection({ start: pointer, end: pointer, clickedFrameId: frameId })
   }
 
   const handleStagePointerMove = (e) => {
     if (dragDraft?.kind === 'shape' || dragDraft?.kind === 'frame') {
       const pointer = e.target.getStage().getPointerPosition()
       setDragDraft((prev) => (prev ? { ...prev, current: pointer, shift: e.evt?.shiftKey } : prev))
+    }
+
+    if (marqueeSelection) {
+      const pointer = e.target.getStage().getPointerPosition()
+      setMarqueeSelection((prev) => (prev ? { ...prev, end: pointer } : prev))
+    }
+
+    if (activeTool === 'pen' && penPoints.length > 0) {
+      const pointer = e.target.getStage().getPointerPosition()
+      setPenPreviewPoint(pointer)
     }
   }
 
@@ -684,6 +1161,92 @@ const KolEditor = () => {
   const handleStagePointerUp = () => {
     if (dragDraft?.kind === 'shape') finalizeShapeDraft()
     if (dragDraft?.kind === 'frame') finalizeFrameDraft()
+    if (marqueeSelection) finalizeMarqueeSelection()
+  }
+
+  const finalizeMarqueeSelection = () => {
+    if (!marqueeSelection) return
+
+    const { start, end, clickedFrameId } = marqueeSelection
+    const width = Math.abs(end.x - start.x)
+    const height = Math.abs(end.y - start.y)
+
+    // If marquee is too small (just a click)
+    if (width < 5 && height < 5) {
+      // If clicked on a frame background, select the frame
+      if (clickedFrameId) {
+        setSelectedShapeId(clickedFrameId)
+        setSelectedShapeIds([])
+      } else {
+        // Otherwise deselect everything
+        setSelectedShapeId(null)
+        setSelectedShapeIds([])
+      }
+      setMarqueeSelection(null)
+      return
+    }
+
+    // Calculate marquee bounds
+    const marqueeLeft = Math.min(start.x, end.x)
+    const marqueeTop = Math.min(start.y, end.y)
+    const marqueeRight = Math.max(start.x, end.x)
+    const marqueeBottom = Math.max(start.y, end.y)
+
+    // Find all objects that intersect with the marquee
+    const intersectingShapes = []
+
+    if (selectedFrame) {
+      // Only check objects in the current frame
+      visibleShapes.forEach(shape => {
+        if (!shape || !shape.visible) return
+
+        // Calculate shape bounds
+        const shapeLeft = shape.x
+        const shapeTop = shape.y
+        const shapeRight = shape.x + shape.width
+        const shapeBottom = shape.y + shape.height
+
+        // Check if marquee intersects with shape
+        if (
+          marqueeLeft < shapeRight &&
+          marqueeRight > shapeLeft &&
+          marqueeTop < shapeBottom &&
+          marqueeBottom > shapeTop
+        ) {
+          intersectingShapes.push(shape.id)
+        }
+      })
+    } else {
+      // Check all top-level objects
+      Object.values(shapes).forEach(shape => {
+        if (shape.type === 'frame' || shape.frameId || !shape.visible) return
+
+        const shapeLeft = shape.x
+        const shapeTop = shape.y
+        const shapeRight = shape.x + shape.width
+        const shapeBottom = shape.y + shape.height
+
+        if (
+          marqueeLeft < shapeRight &&
+          marqueeRight > shapeLeft &&
+          marqueeTop < shapeBottom &&
+          marqueeBottom > shapeTop
+        ) {
+          intersectingShapes.push(shape.id)
+        }
+      })
+    }
+
+    // Update selection
+    if (intersectingShapes.length > 0) {
+      setSelectedShapeIds(intersectingShapes)
+      setSelectedShapeId(null)
+    } else {
+      setSelectedShapeId(null)
+      setSelectedShapeIds([])
+    }
+
+    setMarqueeSelection(null)
   }
 
   const finalizeFrameDraft = () => {
@@ -802,6 +1365,24 @@ const KolEditor = () => {
     })
   }
 
+  const handleNodeDrag = (nodeIndex, x, y) => {
+    if (!selectedObject) return
+    const shape = selectedObject
+
+    // Only handle vector shapes with points
+    if (!shape.meta || !shape.meta.points) return
+
+    // Update the specific point
+    const newPoints = [...shape.meta.points]
+    newPoints[nodeIndex * 2] = x
+    newPoints[nodeIndex * 2 + 1] = y
+
+    // Update shape with new points
+    updateShape(shape.id, {
+      meta: { ...shape.meta, points: newPoints }
+    })
+  }
+
   const handlePositionInput = (prop, value) => {
     if (!selectedObject) return
     const numeric = prop === 'rotation' ? Number(value) : Math.max(0, Number(value))
@@ -857,6 +1438,104 @@ const KolEditor = () => {
     }
   }
 
+  const applyAlignment = (alignType) => {
+    // Get all selected shapes
+    const targetShapes = selectedShapeIds.length > 1
+      ? selectedShapeIds.map(id => shapes[id]).filter(Boolean)
+      : selectedObject ? [selectedObject] : []
+
+    if (targetShapes.length === 0) return
+
+    // If single object and frame selected, align to frame
+    if (targetShapes.length === 1 && selectedFrame) {
+      const frameX = selectedFrame.x
+      const frameY = selectedFrame.y
+      const frameWidth = selectedFrame.width
+      const frameHeight = selectedFrame.height
+      const objWidth = targetShapes[0].width
+      const objHeight = targetShapes[0].height
+
+      const updates = {}
+
+      switch (alignType) {
+        case 'align-left':
+          updates.x = frameX
+          break
+        case 'align-center':
+          updates.x = frameX + (frameWidth - objWidth) / 2
+          break
+        case 'align-right':
+          updates.x = frameX + frameWidth - objWidth
+          break
+        case 'align-top':
+          updates.y = frameY
+          break
+        case 'align-middle':
+          updates.y = frameY + (frameHeight - objHeight) / 2
+          break
+        case 'align-bottom':
+          updates.y = frameY + frameHeight - objHeight
+          break
+      }
+
+      updateShapePosition(targetShapes[0].id, updates)
+      return
+    }
+
+    // Multi-selection: calculate bounding box of all selected shapes
+    if (targetShapes.length > 1) {
+      let minX = Infinity, minY = Infinity
+      let maxX = -Infinity, maxY = -Infinity
+
+      targetShapes.forEach(shape => {
+        minX = Math.min(minX, shape.x)
+        minY = Math.min(minY, shape.y)
+        maxX = Math.max(maxX, shape.x + shape.width)
+        maxY = Math.max(maxY, shape.y + shape.height)
+      })
+
+      const boundingBox = {
+        left: minX,
+        right: maxX,
+        top: minY,
+        bottom: maxY,
+        centerX: (minX + maxX) / 2,
+        centerY: (minY + maxY) / 2
+      }
+
+      // Align each shape to the bounding box
+      const shapeUpdates = {}
+      targetShapes.forEach(shape => {
+        const updates = {}
+
+        switch (alignType) {
+          case 'align-left':
+            updates.x = boundingBox.left
+            break
+          case 'align-center':
+            updates.x = boundingBox.centerX - shape.width / 2
+            break
+          case 'align-right':
+            updates.x = boundingBox.right - shape.width
+            break
+          case 'align-top':
+            updates.y = boundingBox.top
+            break
+          case 'align-middle':
+            updates.y = boundingBox.centerY - shape.height / 2
+            break
+          case 'align-bottom':
+            updates.y = boundingBox.bottom - shape.height
+            break
+        }
+
+        shapeUpdates[shape.id] = { ...shape, ...updates }
+      })
+
+      pushUndoState({ ...shapes, ...shapeUpdates })
+    }
+  }
+
   const applyFilter = (optionId) => {
     if (!selectedObject) return
     const hsb = hexToHsb(selectedObject.color)
@@ -868,6 +1547,251 @@ const KolEditor = () => {
     const hex = hsbToHex(hsb.h, hsb.s, hsb.b)
     updateShape(selectedObject.id, { color: hex })
     setInspectorFilter({ type: optionId, amount: 50 })
+  }
+
+  const applyBooleanOperation = (operation) => {
+    // Need at least 2 selected shapes
+    const selectedShapes = selectedShapeIds.length > 0
+      ? selectedShapeIds.map(id => shapes[id]).filter(Boolean)
+      : selectedObject ? [selectedObject] : []
+
+    if (selectedShapes.length < 2) {
+      console.warn('Boolean operations require at least 2 selected shapes')
+      return
+    }
+
+    // Create a non-destructive boolean group
+    const frameId = selectedShapes[0].frameId
+
+    // Calculate bounding box of all shapes
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    selectedShapes.forEach(shape => {
+      minX = Math.min(minX, shape.x)
+      minY = Math.min(minY, shape.y)
+      maxX = Math.max(maxX, shape.x + shape.width)
+      maxY = Math.max(maxY, shape.y + shape.height)
+    })
+
+    const width = maxX - minX
+    const height = maxY - minY
+
+    // Create boolean group shape
+    const booleanGroup = createShape('boolean', {
+      position: {
+        x: minX,
+        y: minY,
+        width: Math.max(10, width),
+        height: Math.max(10, height),
+        rotation: 0
+      },
+      frameId,
+      meta: {
+        operation: operation.replace('boolean-', ''), // 'unite', 'subtract', 'intersect', 'exclude'
+        childrenData: selectedShapes.map(s => ({
+          id: s.id,
+          type: s.type,
+          x: s.x,
+          y: s.y,
+          width: s.width,
+          height: s.height,
+          color: s.color,
+          meta: s.meta
+        }))
+      }
+    })
+
+    // Set children array for layer-like behavior
+    booleanGroup.children = selectedShapes.map(s => s.id)
+
+    // Update original shapes to be children of boolean group
+    const newShapes = { ...shapes }
+    selectedShapes.forEach(shape => {
+      newShapes[shape.id] = {
+        ...shape,
+        parentId: booleanGroup.id,
+        frameId: null, // Remove from frame, now belongs to boolean group
+        visible: false // Hide children, only render the boolean result
+      }
+    })
+
+    // Add boolean group to frame (or top level)
+    if (frameId) {
+      const frame = newShapes[frameId]
+      if (frame) {
+        // Remove children from frame
+        newShapes[frameId] = {
+          ...frame,
+          children: [
+            ...frame.children.filter(id => !selectedShapes.find(s => s.id === id)),
+            booleanGroup.id
+          ]
+        }
+      }
+    }
+    newShapes[booleanGroup.id] = { ...booleanGroup, frameId, parentId: frameId }
+
+    pushUndoState(newShapes)
+    setSelectedShapeId(booleanGroup.id)
+    setSelectedShapeIds([])
+
+    // Expand the boolean group by default to show children
+    setExpandedShapes((prev) => {
+      const next = new Set(prev)
+      next.add(booleanGroup.id)
+      return next
+    })
+  }
+
+  const expandBooleanGroup = () => {
+    if (!selectedObject || selectedObject.type !== 'boolean') return
+
+    const booleanGroup = selectedObject
+    const operation = booleanGroup.meta?.operation || 'unite'
+    const childrenData = booleanGroup.meta?.childrenData || []
+
+    if (childrenData.length < 2) return
+
+    // Convert shape data to polygon format (reuse logic from rendering)
+    const shapeToPolygon = (childData) => {
+      const polygon = []
+      if (childData.type === 'rect') {
+        polygon.push([childData.x, childData.y])
+        polygon.push([childData.x + childData.width, childData.y])
+        polygon.push([childData.x + childData.width, childData.y + childData.height])
+        polygon.push([childData.x, childData.y + childData.height])
+      } else if (childData.type === 'circle') {
+        const centerX = childData.x + childData.width / 2
+        const centerY = childData.y + childData.height / 2
+        const radius = Math.min(childData.width, childData.height) / 2
+        for (let i = 0; i < 32; i++) {
+          const angle = (i / 32) * Math.PI * 2
+          polygon.push([
+            centerX + Math.cos(angle) * radius,
+            centerY + Math.sin(angle) * radius
+          ])
+        }
+      } else if (childData.type === 'triangle') {
+        const centerX = childData.x + childData.width / 2
+        const centerY = childData.y + childData.height / 2
+        const radius = Math.min(childData.width, childData.height) / 2
+        for (let i = 0; i < 3; i++) {
+          const angle = (i / 3) * Math.PI * 2 - Math.PI / 2
+          polygon.push([
+            centerX + Math.cos(angle) * radius,
+            centerY + Math.sin(angle) * radius
+          ])
+        }
+      } else if (childData.type === 'polygon') {
+        const centerX = childData.x + childData.width / 2
+        const centerY = childData.y + childData.height / 2
+        const radius = Math.min(childData.width, childData.height) / 2
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * Math.PI * 2
+          polygon.push([
+            centerX + Math.cos(angle) * radius,
+            centerY + Math.sin(angle) * radius
+          ])
+        }
+      } else if (childData.type === 'star') {
+        const centerX = childData.x + childData.width / 2
+        const centerY = childData.y + childData.height / 2
+        const outerRadius = Math.min(childData.width, childData.height) / 2
+        const innerRadius = outerRadius / 2.5
+        for (let i = 0; i < 10; i++) {
+          const angle = (i / 10) * Math.PI * 2 - Math.PI / 2
+          const radius = i % 2 === 0 ? outerRadius : innerRadius
+          polygon.push([
+            centerX + Math.cos(angle) * radius,
+            centerY + Math.sin(angle) * radius
+          ])
+        }
+      } else if (childData.type === 'path' && childData.meta?.points) {
+        const points = childData.meta.points
+        for (let i = 0; i < points.length; i += 2) {
+          polygon.push([childData.x + points[i], childData.y + points[i + 1]])
+        }
+      }
+      return [polygon]
+    }
+
+    try {
+      const polygons = childrenData.map(shapeToPolygon)
+      let result = polygons[0]
+
+      for (let i = 1; i < polygons.length; i++) {
+        switch (operation) {
+          case 'unite':
+            result = polygonClipping.union(result, polygons[i])
+            break
+          case 'subtract':
+            result = polygonClipping.difference(result, polygons[i])
+            break
+          case 'intersect':
+            result = polygonClipping.intersection(result, polygons[i])
+            break
+          case 'exclude':
+            result = polygonClipping.xor(result, polygons[i])
+            break
+        }
+      }
+
+      if (!result || result.length === 0 || result[0].length === 0) return
+
+      // Convert result to points for new path shape
+      const resultRing = result[0][0]
+      const points = []
+      resultRing.forEach(([x, y]) => {
+        points.push(x, y)
+      })
+
+      // Create new path shape from boolean result
+      const newPath = createShape('path', {
+        position: {
+          x: 0,
+          y: 0,
+          width: booleanGroup.width,
+          height: booleanGroup.height,
+          rotation: booleanGroup.rotation
+        },
+        frameId: booleanGroup.frameId,
+        color: childrenData[0].color,
+        meta: {
+          points: points,
+          closed: true
+        }
+      })
+
+      // Replace boolean group with path shape
+      const newShapes = { ...shapes }
+
+      // Delete boolean group and its children
+      delete newShapes[booleanGroup.id]
+      booleanGroup.children?.forEach(childId => {
+        delete newShapes[childId]
+      })
+
+      // Add new path shape
+      newShapes[newPath.id] = newPath
+
+      // Update frame's children array if in a frame
+      if (booleanGroup.frameId) {
+        const frame = newShapes[booleanGroup.frameId]
+        if (frame) {
+          newShapes[booleanGroup.frameId] = {
+            ...frame,
+            children: [
+              ...frame.children.filter(id => id !== booleanGroup.id),
+              newPath.id
+            ]
+          }
+        }
+      }
+
+      pushUndoState(newShapes)
+      setSelectedShapeId(newPath.id)
+    } catch (error) {
+      console.error('Failed to expand boolean group:', error)
+    }
   }
 
   const handleShapeInsert = (shapeType) => {
@@ -925,6 +1849,12 @@ const KolEditor = () => {
 
   const handleToolOption = (toolId, optionId) => {
     setToolSelections((prev) => ({ ...prev, [toolId]: optionId }))
+    if (toolId === 'select') {
+      if (optionId === 'select-node') {
+        setNodeEditMode(true)
+        setActiveTool('select')
+      }
+    }
     if (toolId === 'zoom') {
       if (optionId === 'zoom-in') handleZoomAtPointer('in')
       if (optionId === 'zoom-out') handleZoomAtPointer('out')
@@ -932,6 +1862,8 @@ const KolEditor = () => {
     if (toolId === 'shape') handleShapeInsert(optionId.replace('shape-', ''))
     if (toolId === 'draw') handleDrawOption(optionId)
     if (toolId === 'text') handleTextOption(optionId)
+    if (toolId === 'align') applyAlignment(optionId)
+    if (toolId === 'boolean') applyBooleanOperation(optionId)
     if (toolId === 'crop') {
       if (optionId === 'crop-free') applyCropRatio('free')
       if (optionId === 'crop-1-1') applyCropRatio(1)
@@ -969,7 +1901,7 @@ const KolEditor = () => {
         else nodeRefs.current.delete(shape.id)
       },
       rotation: shape.rotation,
-      draggable: true,
+      draggable: !nodeEditMode, // Disable dragging in node edit mode
       opacity: shape.opacity,
       onClick: (e) => handleCanvasSelection(frameId, shape.id, e),
       onTap: (e) => handleCanvasSelection(frameId, shape.id, e),
@@ -997,6 +1929,185 @@ const KolEditor = () => {
     }
     if (shape.type === 'line' || shape.type === 'scribble') {
       return <Line key={shape.id} {...commonProps} x={shape.x} y={shape.y} points={shape.meta?.points ?? []} stroke={shape.color} strokeWidth={shape.type === 'line' ? 4 : 3} lineCap="round" lineJoin="round" />
+    }
+    if (shape.type === 'path') {
+      const isClosed = shape.meta?.closed ?? false
+      const points = shape.meta?.points ?? []
+
+      // For closed paths, use Line with closed=true and fill only
+      if (isClosed) {
+        return (
+          <Line
+            key={shape.id}
+            {...commonProps}
+            x={shape.x}
+            y={shape.y}
+            points={points}
+            closed={true}
+            fill={shape.color}
+            fillEnabled={true}
+            stroke="transparent"
+            strokeWidth={0}
+            strokeEnabled={false}
+            shadowEnabled={false}
+            perfectDrawEnabled={false}
+          />
+        )
+      }
+
+      // For open paths, only render stroke (no fill)
+      return (
+        <Line
+          key={shape.id}
+          {...commonProps}
+          x={shape.x}
+          y={shape.y}
+          points={points}
+          stroke={shape.color}
+          strokeWidth={3}
+          lineCap="round"
+          lineJoin="round"
+        />
+      )
+    }
+    if (shape.type === 'boolean') {
+      // In node edit mode, render the actual child shapes for selection
+      if (nodeEditMode && shape.children) {
+        return shape.children.map(childId => {
+          const childShape = shapes[childId]
+          if (!childShape) return null
+          return renderObject(frameId, childShape)
+        })
+      }
+
+      // Render boolean operation result
+      const operation = shape.meta?.operation || 'unite'
+      const childrenData = shape.meta?.childrenData || []
+
+      if (childrenData.length < 2) return null
+
+      // Convert any shape to polygon format
+      const shapeToPolygon = (childData) => {
+        const polygon = []
+
+        if (childData.type === 'rect') {
+          // Rectangle: 4 corners
+          polygon.push([childData.x, childData.y])
+          polygon.push([childData.x + childData.width, childData.y])
+          polygon.push([childData.x + childData.width, childData.y + childData.height])
+          polygon.push([childData.x, childData.y + childData.height])
+        } else if (childData.type === 'circle') {
+          // Circle: approximate with 32 points
+          const centerX = childData.x + childData.width / 2
+          const centerY = childData.y + childData.height / 2
+          const radius = Math.min(childData.width, childData.height) / 2
+          for (let i = 0; i < 32; i++) {
+            const angle = (i / 32) * Math.PI * 2
+            polygon.push([
+              centerX + Math.cos(angle) * radius,
+              centerY + Math.sin(angle) * radius
+            ])
+          }
+        } else if (childData.type === 'triangle') {
+          // Triangle: 3 points of equilateral triangle
+          const centerX = childData.x + childData.width / 2
+          const centerY = childData.y + childData.height / 2
+          const radius = Math.min(childData.width, childData.height) / 2
+          for (let i = 0; i < 3; i++) {
+            const angle = (i / 3) * Math.PI * 2 - Math.PI / 2
+            polygon.push([
+              centerX + Math.cos(angle) * radius,
+              centerY + Math.sin(angle) * radius
+            ])
+          }
+        } else if (childData.type === 'polygon') {
+          // Hexagon: 6 points
+          const centerX = childData.x + childData.width / 2
+          const centerY = childData.y + childData.height / 2
+          const radius = Math.min(childData.width, childData.height) / 2
+          for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2
+            polygon.push([
+              centerX + Math.cos(angle) * radius,
+              centerY + Math.sin(angle) * radius
+            ])
+          }
+        } else if (childData.type === 'star') {
+          // Star: 10 points (5 outer + 5 inner)
+          const centerX = childData.x + childData.width / 2
+          const centerY = childData.y + childData.height / 2
+          const outerRadius = Math.min(childData.width, childData.height) / 2
+          const innerRadius = outerRadius / 2.5
+          for (let i = 0; i < 10; i++) {
+            const angle = (i / 10) * Math.PI * 2 - Math.PI / 2
+            const radius = i % 2 === 0 ? outerRadius : innerRadius
+            polygon.push([
+              centerX + Math.cos(angle) * radius,
+              centerY + Math.sin(angle) * radius
+            ])
+          }
+        } else if (childData.type === 'path' && childData.meta?.points) {
+          // Path: use existing points
+          const points = childData.meta.points
+          for (let i = 0; i < points.length; i += 2) {
+            polygon.push([childData.x + points[i], childData.y + points[i + 1]])
+          }
+        }
+
+        return [polygon]
+      }
+
+      try {
+        const polygons = childrenData.map(shapeToPolygon)
+        let result
+
+        // Apply boolean operation progressively
+        result = polygons[0]
+        for (let i = 1; i < polygons.length; i++) {
+          switch (operation) {
+            case 'unite':
+              result = polygonClipping.union(result, polygons[i])
+              break
+            case 'subtract':
+              result = polygonClipping.difference(result, polygons[i])
+              break
+            case 'intersect':
+              result = polygonClipping.intersection(result, polygons[i])
+              break
+            case 'exclude':
+              result = polygonClipping.xor(result, polygons[i])
+              break
+          }
+        }
+
+        if (!result || result.length === 0 || result[0].length === 0) return null
+
+        // Convert result to points for rendering
+        const resultRing = result[0][0]
+        const points = []
+        resultRing.forEach(([x, y]) => {
+          points.push(x, y)
+        })
+
+        return (
+          <Line
+            key={shape.id}
+            {...commonProps}
+            x={0}
+            y={0}
+            points={points}
+            closed={true}
+            fill={childrenData[0].color}
+            fillEnabled={true}
+            strokeEnabled={false}
+            shadowEnabled={false}
+            perfectDrawEnabled={false}
+          />
+        )
+      } catch (error) {
+        console.error('Boolean rendering failed:', error)
+        return null
+      }
     }
     if (shape.type === 'text') {
       return (
@@ -1201,12 +2312,16 @@ const KolEditor = () => {
 
   const stageCursor = useMemo(() => {
     if (activeTool === 'zoom') return isAltPressed ? 'zoom-out' : 'zoom-in'
-    if (activeTool === 'select') return 'default'
+    if (activeTool === 'select') {
+      // Use different cursor for node edit mode vs regular select mode
+      return nodeEditMode ? 'url(/icons/cursor-node.svg) 0 0, pointer' : 'url(/icons/cursor-selector.svg) 0 0, default'
+    }
+    if (activeTool === 'pen') return 'crosshair'
     return 'crosshair'
-  }, [activeTool, isAltPressed])
+  }, [activeTool, isAltPressed, nodeEditMode])
 
   return (
-    <div className="min-h-screen w-full bg-zinc-900 text-[12px] text-zinc-100 flex flex-col">
+    <div className="min-h-screen w-full bg-zinc-900 text-[12px] text-zinc-100 flex flex-col" style={{ cursor: 'url(/icons/cursor-selector.svg) 0 0, default' }}>
       <TopNav
         onCanvasSizeClick={() => setCanvasDialog({ open: true, width: canvasSize.width, height: canvasSize.height })}
         onClearDocument={handleClearDocument}
@@ -1216,9 +2331,10 @@ const KolEditor = () => {
       <div className="flex-1 flex overflow-hidden">
         <LayersSidebar
           layers={frames}
-          infiniteCanvasShapes={infiniteCanvasShapes}
+          shapes={shapes}
           selectedLayerId={selectedFrame?.id ?? null}
           selectedObjectId={selectedObject?.id ?? null}
+          selectedObjectIds={selectedShapeIds}
           expandedLayers={expandedShapes}
           onLayerSelect={(frameId, shapeId) => {
             if (frameId === null && shapeId === null) {
@@ -1236,8 +2352,14 @@ const KolEditor = () => {
           onToggleExpand={(frameId) => {
             setExpandedShapes((prev) => {
               const next = new Set(prev)
-              if (next.has(frameId)) next.delete(frameId)
-              else next.add(frameId)
+              const wasExpanded = next.has(frameId)
+              if (wasExpanded) {
+                next.delete(frameId)
+                console.log('Collapsing:', frameId, 'remaining:', Array.from(next))
+              } else {
+                next.add(frameId)
+                console.log('Expanding:', frameId, 'all expanded:', Array.from(next))
+              }
               return next
             })
           }}
@@ -1247,6 +2369,12 @@ const KolEditor = () => {
           onDeleteLayer={handleDeleteFrame}
           onDeleteObject={handleDeleteShape}
           onAddLayer={handleAddFrame}
+          onReorderFrames={handleReorderFrames}
+          onReorderObjects={handleReorderObjects}
+          onMoveObjectToFrame={handleMoveObjectToFrame}
+          onNestFrameInFrame={handleNestFrameInFrame}
+          onMoveToInfiniteCanvas={handleMoveToInfiniteCanvas}
+          onInsertItem={handleInsertItem}
         />
 
         <div className="flex-1 flex flex-col bg-zinc-950 relative min-h-0 overflow-hidden">
@@ -1272,6 +2400,7 @@ const KolEditor = () => {
             selectedLayer={selectedFrame}
             layers={frames}
             shapes={shapes}
+            selectedObject={selectedObject}
             selectedObjectId={selectedObject?.id ?? null}
             activeTool={activeTool}
             stageCursor={stageCursor}
@@ -1281,6 +2410,11 @@ const KolEditor = () => {
             dragDraft={dragDraft}
             layoutSettings={layoutSettings}
             canvasBackground={canvasBackground}
+            marqueeSelection={marqueeSelection}
+            penPoints={penPoints}
+            penPreviewPoint={penPreviewPoint}
+            nodeEditMode={nodeEditMode}
+            editingNodeIndex={editingNodeIndex}
             onStagePointerDown={handleStagePointerDown}
             onStagePointerMove={handleStagePointerMove}
             onStagePointerUp={handleStagePointerUp}
@@ -1290,6 +2424,9 @@ const KolEditor = () => {
             onObjectDragEnd={handleObjectDragEnd}
             onObjectTransformEnd={handleObjectTransformEnd}
             onBeginArtboardDrag={beginArtboardDrag}
+            onNodeDragStart={(nodeIndex) => setEditingNodeIndex(nodeIndex)}
+            onNodeDrag={(nodeIndex, x, y) => handleNodeDrag(nodeIndex, x, y)}
+            onNodeDragEnd={() => setEditingNodeIndex(null)}
             renderObject={renderObject}
             renderDraftGrid={renderDraftGrid}
           />
@@ -1309,6 +2446,9 @@ const KolEditor = () => {
               setCanvasBackground(background)
             }
           }}
+          onLayerPropertyChange={(prop, value) => {
+            if (selectedFrame) updateShape(selectedFrame.id, { [prop]: parseFloat(value) })
+          }}
           onObjectPropertyChange={handlePositionInput}
           onObjectColorChange={handleColorChange}
           onObjectOpacityChange={handleOpacityChange}
@@ -1317,6 +2457,7 @@ const KolEditor = () => {
           }}
           inspectorFilter={inspectorFilter}
           setInspectorFilter={setInspectorFilter}
+          onExpandBooleanGroup={expandBooleanGroup}
         />
       </div>
 
