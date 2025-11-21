@@ -14,12 +14,15 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "konva": "^10.0.9",
+    "pixi-filters": "^6.1.4",
+    "pixi.js": "^8.14.3",
     "polygon-clipping": "^0.15.7",
     "react": "^19.2.0",
     "react-color": "^2.19.3",
     "react-dom": "^19.2.0",
     "react-konva": "^19.2.0",
-    "react-router-dom": "^7.9.6"
+    "react-router-dom": "^7.9.6",
+    "use-image": "^1.1.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

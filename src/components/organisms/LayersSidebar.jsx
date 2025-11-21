@@ -13,7 +13,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import LayerItem from '../molecules/LayerItem'
 import ObjectItem from '../molecules/ObjectItem'
 import Button from '../atoms/Button'
@@ -43,6 +43,16 @@ const LayersSidebar = ({
 }) => {
   const [activeId, setActiveId] = useState(null)
   const [activeType, setActiveType] = useState(null)
+  const mousePositionRef = useRef({ x: 0, y: 0 })
+
+  // Track mouse position globally
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      mousePositionRef.current = { x: e.clientX, y: e.clientY }
+    }
+    document.addEventListener('mousemove', handleMouseMove)
+    return () => document.removeEventListener('mousemove', handleMouseMove)
+  }, [])
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -58,6 +68,7 @@ const LayersSidebar = ({
   const [overId, setOverId] = useState(null)
   const [dropIndicator, setDropIndicator] = useState(null) // 'line' or 'outline'
   const [dropPosition, setDropPosition] = useState(null) // 'before', 'after', 'inside'
+  const [dropTargetId, setDropTargetId] = useState(null) // For showing outline when on right side
 
   // Flatten layers and objects into single array with depth information
   const flattenedItems = React.useMemo(() => {
@@ -131,46 +142,84 @@ const LayersSidebar = ({
   const handleDragStart = (event) => {
     const { active } = event
     setActiveId(active.id)
-    // Determine if dragging a frame or object
-    const isFrame = layers.some(layer => layer.id === active.id)
+    // Determine if dragging a frame or object by checking shapes
+    const shape = shapes[active.id]
+    const isFrame = shape && shape.type === 'frame'
     setActiveType(isFrame ? 'frame' : 'object')
+    console.log('DRAG START:', { id: active.id, shape, isFrame, type: shape?.type })
   }
 
-  const handleDragOver = (event) => {
-    const { over, active } = event
-    if (!over) {
-      setOverId(null)
-      return
-    }
+  const handleDragMove = (event) => {
+    if (event.over) {
+      const { over, active } = event
 
-    setOverId(over.id)
+      // Find items
+      const overItem = flattenedItems.find(item => item.id === over.id)
+      const activeItem = flattenedItems.find(item => item.id === active.id)
 
-    // Find indices in flattened list
-    const overItem = flattenedItems.find(item => item.id === over.id)
-    const activeItem = flattenedItems.find(item => item.id === active.id)
+      if (!overItem || !activeItem) return
 
-    if (!overItem || !activeItem) return
+      const isOverFrame = overItem.itemType === 'frame'
 
-    const overIndex = flattenedItems.findIndex(item => item.id === over.id)
-    const activeIndex = flattenedItems.findIndex(item => item.id === active.id)
+      // Only frames can receive items inside them
+      if (!isOverFrame) {
+        // For objects, only before/after
+        const overIndex = flattenedItems.findIndex(item => item.id === over.id)
+        const activeIndex = flattenedItems.findIndex(item => item.id === active.id)
+        const isMovingUp = activeIndex > overIndex
 
-    // Standard dnd-kit pattern: determine position based on index movement
-    // If moving up (activeIndex > overIndex): insert before over
-    // If moving down (activeIndex < overIndex): insert after over
-    const isMovingUp = activeIndex > overIndex
-    const isOverFrame = overItem.itemType === 'frame'
-    const isFrameCollapsed = isOverFrame && !expandedLayers.has(overItem.id)
+        setOverId(over.id)
+        setDropIndicator('line')
+        setDropPosition(isMovingUp ? 'before' : 'after')
+        return
+      }
 
-    // Special case: if hovering over a collapsed frame, allow nesting inside
-    if (isFrameCollapsed && !isMovingUp) {
-      setDropIndicator('outline')
-      setDropPosition('inside')
-    } else if (isMovingUp) {
-      setDropIndicator('line')
-      setDropPosition('before')
+      // For frames: check horizontal position FIRST
+      const overElement = document.querySelector(`[data-layer-id="${over.id}"]`)
+      if (!overElement) {
+        // Fallback to index-based logic
+        const overIndex = flattenedItems.findIndex(item => item.id === over.id)
+        const activeIndex = flattenedItems.findIndex(item => item.id === active.id)
+        const isMovingUp = activeIndex > overIndex
+        setOverId(over.id)
+        setDropIndicator('line')
+        setDropPosition(isMovingUp ? 'before' : 'after')
+        return
+      }
+
+      const rect = overElement.getBoundingClientRect()
+      const mouseY = mousePositionRef.current.y
+      const mouseX = mousePositionRef.current.x
+      const relativeY = mouseY - rect.top
+      const relativeX = mouseX - rect.left
+      const height = rect.height
+      const width = rect.width
+
+      // RIGHT SIDE (60% of width) = Always drop INSIDE, no reordering
+      // Don't set overId to prevent visual reordering animation
+      if (relativeX > width * 0.4) {
+        setOverId(null)
+        setDropTargetId(over.id)
+        setDropIndicator('outline')
+        setDropPosition('inside')
+      }
+      // LEFT SIDE (40% of width) = Allow reordering before/after
+      else {
+        setOverId(over.id)
+        setDropTargetId(null)
+        if (relativeY < height * 0.5) {
+          setDropIndicator('line')
+          setDropPosition('before')
+        } else {
+          setDropIndicator('line')
+          setDropPosition('after')
+        }
+      }
     } else {
-      setDropIndicator('line')
-      setDropPosition('after')
+      setOverId(null)
+      setDropTargetId(null)
+      setDropIndicator(null)
+      setDropPosition(null)
     }
   }
 
@@ -181,21 +230,27 @@ const LayersSidebar = ({
       setActiveId(null)
       setActiveType(null)
       setOverId(null)
+      setDropTargetId(null)
       setDropIndicator(null)
       setDropPosition(null)
       return
     }
 
+    console.log('DROP:', { activeId: active.id, overId: over.id, dropPosition, activeType })
+
     // Use position-based logic
     if (dropPosition === 'inside') {
       // Nest into the target frame
+      console.log('Dropping INSIDE frame')
       if (activeType === 'frame') {
         onNestFrameInFrame(active.id, over.id)
       } else {
+        console.log('Calling onMoveObjectToFrame')
         onMoveObjectToFrame(active.id, over.id)
       }
     } else if (dropPosition === 'before' || dropPosition === 'after') {
       // Insert before or after the target item
+      console.log('Dropping', dropPosition)
       onInsertItem(active.id, over.id, dropPosition)
     }
 
@@ -210,6 +265,7 @@ const LayersSidebar = ({
     setActiveId(null)
     setActiveType(null)
     setOverId(null)
+    setDropTargetId(null)
     setDropIndicator(null)
   }
 
@@ -218,17 +274,27 @@ const LayersSidebar = ({
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
+      onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
+      modifiers={[
+        (args) => {
+          const { transform } = args
+          // Constrain horizontal movement to 0 - no left/right dragging
+          return {
+            ...transform,
+            x: 0,
+          }
+        }
+      ]}
     >
-      <div className="w-56 border-r border-zinc-800 bg-zinc-900 flex flex-col">
+      <div className="w-56 border-r border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden">
         <div className="px-3 py-2 border-b border-zinc-800 uppercase tracking-wide text-zinc-500">
           Canvas
         </div>
 
         <div
-          className="flex-1 overflow-y-auto p-2 space-y-1"
+          className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-1"
           onClick={(e) => {
             // If clicking on the empty space (not on a layer item), deselect everything
             if (e.target === e.currentTarget) {
@@ -247,13 +313,13 @@ const LayersSidebar = ({
           >
             {flattenedItems.map((item) => {
               const showLine = overId === item.id && dropIndicator === 'line'
-              const showOutline = overId === item.id && dropIndicator === 'outline'
+              const showOutline = (overId === item.id || dropTargetId === item.id) && dropIndicator === 'outline'
 
               if (item.itemType === 'frame') {
                 // Determine if this frame/boolean group is selected
                 const hasSelectedChild = item.objects?.some(obj => obj.id === selectedObjectId)
-                // Check if it's selected as a layer (frame) OR as an object (boolean group)
-                const isFrameSelected = (selectedLayerId === item.id || selectedObjectId === item.id) && !hasSelectedChild
+                // Check if it's selected as a layer (frame) OR as an object (boolean group) OR in multi-selection
+                const isFrameSelected = (selectedLayerId === item.id || selectedObjectId === item.id || selectedObjectIds.includes(item.id)) && !hasSelectedChild
 
                 return (
                   <LayerItem
@@ -263,7 +329,7 @@ const LayersSidebar = ({
                     hasSelectedChild={hasSelectedChild}
                     hasChildren={item.hasChildren}
                     isExpanded={expandedLayers.has(item.id)}
-                    onSelect={() => onLayerSelect(item.id, item.objects?.[0]?.id)}
+                    onSelect={() => onLayerSelect(item.id, null)}
                     onToggleExpand={() => onToggleExpand(item.id)}
                     onToggleVisibility={() => onToggleLayerVisibility(item.id)}
                     showOutline={showOutline}

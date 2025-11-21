@@ -41,6 +41,7 @@ const ObjectItem = ({
 
       <div
         onClick={onSelect}
+        data-layer-id={object.id}
         {...attributes}
         {...listeners}
         className={`h-9 px-4 py-3 rounded flex justify-between items-center overflow-hidden cursor-grab active:cursor-grabbing ${

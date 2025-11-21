@@ -48,16 +48,17 @@ const LayerItem = ({
         role="button"
         tabIndex={0}
         onClick={onSelect}
+        data-layer-id={layer.id}
         {...attributes}
         {...listeners}
         className={`group px-4 rounded flex justify-between items-center overflow-hidden cursor-grab active:cursor-grabbing ${
-          isSelected
+          showOutline
+            ? 'bg-zinc-800/50 outline-2 outline-offset-[-2px] outline-blue-500'
+            : isSelected
             ? 'bg-zinc-800/50 outline-1 outline-offset-[-1px] outline-orange-500'
             : hasSelectedChild
             ? 'bg-zinc-800/50 outline-1 outline-offset-[-1px] outline-amber-300/40'
             : 'opacity-40 bg-zinc-800/50 outline-1 outline-offset-[-1px] outline-zinc-800/50'
-        } ${
-          showOutline ? 'outline-2 outline-blue-500' : ''
         }`}
         style={{
           height: '48px',
