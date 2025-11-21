@@ -54,13 +54,13 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900 text-zinc-100">
+    <div className="min-h-screen bg-surface-primary text-auto">
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold">Kolkrabbi Editor</h1>
-            <p className="text-zinc-400 mt-1">Your design files</p>
+            <p className="text-fg-64 mt-1">Your design files</p>
           </div>
           <Button variant="primary" onClick={onNewFile}>
             + New File
@@ -70,7 +70,7 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
         {/* Files Grid */}
         {files.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-zinc-500 mb-4">
+            <div className="text-fg-48 mb-4">
               <svg
                 className="w-16 h-16 mx-auto mb-4"
                 fill="none"
@@ -96,11 +96,11 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
             {files.map((file) => (
               <div
                 key={file.id}
-                className="group bg-zinc-800 rounded-lg overflow-hidden border border-zinc-700 hover:border-zinc-600 transition-colors cursor-pointer"
+                className="group bg-container-primary rounded-lg overflow-hidden border border-fg-08 hover:border-fg-08 transition-colors cursor-pointer"
                 onClick={() => onOpenFile(file.id)}
               >
                 {/* Thumbnail */}
-                <div className="aspect-video bg-zinc-900 flex items-center justify-center">
+                <div className="aspect-video bg-surface-primary flex items-center justify-center">
                   {file.thumbnail ? (
                     <img
                       src={file.thumbnail}
@@ -109,7 +109,7 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
                     />
                   ) : (
                     <svg
-                      className="w-12 h-12 text-zinc-700"
+                      className="w-12 h-12 text-fg-24"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -133,7 +133,7 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
                         e.stopPropagation()
                         deleteFile(file.id)
                       }}
-                      className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-all ml-2"
+                      className="opacity-0 group-hover:opacity-100 text-fg-48 hover:text-red-400 transition-all ml-2"
                       title="Delete"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -146,7 +146,7 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
                       </svg>
                     </button>
                   </div>
-                  <p className="text-xs text-zinc-500">{formatDate(file.updatedAt)}</p>
+                  <p className="text-xs text-fg-48">{formatDate(file.updatedAt)}</p>
                 </div>
               </div>
             ))}

@@ -1,3 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
-  <path fill="#FAFAFA" d="M13 11H5v2h8v3l4-4-4-4v3Zm6-8h2v3h-2V3Zm0 5h2v3h-2V8Zm0 5h2v3h-2v-3Zm0 5h2v3h-2v-3Z"/>
+  <path fill="currentColor" d="M13 11H5v2h8v3l4-4-4-4v3Zm6-8h2v3h-2V3Zm0 5h2v3h-2V8Zm0 5h2v3h-2v-3Zm0 5h2v3h-2v-3Z"/>
 </svg>

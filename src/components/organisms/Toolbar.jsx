@@ -4,22 +4,22 @@ import Separator from '../atoms/Separator'
 import Icon from '../icons/Icon'
 import { TOOLBAR_LAYOUT, TOOL_SUBMENUS, FILTER_OPTIONS, FILTER_GROUPS } from '../../constants/editor'
 
-// Icon map using tools-name folder structure
+// Icon map using app-icons folder
 const iconMap = {
-  select: { folder: 'tools-name/other', name: 'pointer-selector' },
-  frame: { folder: 'tools-name/other', name: 'crop' },
-  zoom: { folder: 'tools-name/other', name: 'zoom-magnify' },
-  flipX: { folder: 'tools-name/shape-align', name: 'flip-x' },
-  flipY: { folder: 'tools-name/shape-align', name: 'flip-y' },
-  rotateLeft: { folder: 'tools-name/other', name: 'turn-90-left' },
-  rotateRight: { folder: 'tools-name/other', name: 'turn-90-right' },
-  align: { folder: 'tools-name/shape-align', name: 'auto-layout' },
-  pen: { folder: 'tools-name/shape-align', name: 'pen' },
-  draw: { folder: 'tools-name/shape-align', name: 'pencil' },
-  shape: { folder: 'tools-name/shape-align', name: 'rectangle' },
-  text: { folder: 'tools-name/other', name: 'font=03' },
-  photo: { folder: 'a1', name: 'photo-02' },
-  boolean: { folder: 'tools-name/shape-align', name: 'boolean-unite' }
+  select: { folder: 'app-icons', name: 'pointer-selector-tool-select' },
+  frame: { folder: 'app-icons', name: 'crop-tool-frame' },
+  zoom: { folder: 'app-icons', name: 'zoom-magnify-tool-zoom' },
+  flipX: { folder: 'app-icons', name: 'flip-x-tool-transform' },
+  flipY: { folder: 'app-icons', name: 'flip-y-tool-transform' },
+  rotateLeft: { folder: 'app-icons', name: 'turn-90-left-tool-rotate' },
+  rotateRight: { folder: 'app-icons', name: 'turn-90-right-tool-rotate' },
+  align: { folder: 'app-icons', name: 'auto-layout-tool-align' },
+  pen: { folder: 'app-icons', name: 'pen-tool-draw' },
+  draw: { folder: 'app-icons', name: 'pencil-tool-draw' },
+  shape: { folder: 'app-icons', name: 'rectangle-tool-shape' },
+  text: { folder: 'app-icons', name: 'font-03-tool-text' },
+  photo: { folder: 'app-icons', name: 'photo-02-tool-photo' },
+  boolean: { folder: 'app-icons', name: 'boolean-unite-tool-boolean' }
 }
 
 const Toolbar = ({
@@ -70,22 +70,22 @@ const Toolbar = ({
   }
 
   return (
-    <div className="relative border-b border-zinc-800 bg-zinc-900" ref={toolbarRef}>
+    <div className="relative border-b border-fg-08 bg-surface-primary" ref={toolbarRef}>
       <div className="flex items-center px-3 py-2 gap-1">
         {TOOLBAR_LAYOUT.map((item) => renderToolButton(item))}
         <button
           type="button"
-          className={`ml-auto px-3 h-9 rounded border border-zinc-700 flex items-center gap-2 ${
-            filterMenuOpen ? 'bg-blue-600 border-blue-500' : 'bg-zinc-900 hover:bg-zinc-800'
+          className={`ml-auto px-3 h-9 rounded border flex items-center gap-2 kol-mono-xs ${
+            filterMenuOpen ? 'bg-surface-on-primary border-surface-on-primary text-surface-primary' : 'bg-surface-primary border-fg-08 hover:bg-fg-08 text-auto'
           }`}
           onClick={() => setFilterMenuOpen((prev) => !prev)}
         >
-          Filters <Icon name="auto-layout" folder="tools-name/shape-align" size={16} />
+          Filters <Icon name="auto-layout-tool-align" folder="app-icons" size={16} />
         </button>
       </div>
 
       {filterMenuOpen && (
-        <div className="absolute top-full right-4 mt-1 z-10 rounded border border-zinc-800 bg-zinc-900 shadow-lg min-w-[220px]">
+        <div className="absolute top-full right-4 mt-1 z-10 rounded border border-fg-08 bg-container-elevated min-w-[220px]">
           <div className="flex flex-col py-1">
             {FILTER_GROUPS.map((group) => {
               const groupFilters = FILTER_OPTIONS.filter(f => f.group === group.id)
@@ -95,20 +95,20 @@ const Toolbar = ({
                 <div key={group.id}>
                   <button
                     type="button"
-                    className="w-full text-left hover:bg-zinc-800 text-zinc-200 flex items-center justify-between"
+                    className="w-full text-left hover:bg-fg-08 text-auto flex items-center justify-between"
                     style={{ padding: '8px 12px' }}
                     onClick={() => setExpandedGroup(isExpanded ? null : group.id)}
                   >
-                    <span className="font-medium">{group.label}</span>
-                    <span className="text-zinc-500">{isExpanded ? '▼' : '▶'}</span>
+                    <span className="font-medium kol-mono-xs">{group.label}</span>
+                    <span className="text-fg-48">{isExpanded ? '▼' : '▶'}</span>
                   </button>
                   {isExpanded && (
-                    <div className="bg-zinc-950">
+                    <div className="bg-fg-04">
                       {groupFilters.map((filter) => (
                         <button
                           key={filter.id}
                           type="button"
-                          className="w-full text-left hover:bg-zinc-800 text-zinc-300 flex items-center gap-2"
+                          className="w-full text-left hover:bg-fg-08 text-fg-80 flex items-center gap-2"
                           style={{ padding: '8px 12px 8px 24px' }}
                           onClick={() => {
                             onFilterSelect(filter.id)
@@ -116,7 +116,7 @@ const Toolbar = ({
                           }}
                         >
                           <Icon name={filter.icon.name} folder={filter.icon.folder} size={14} />
-                          <span className="text-sm">{filter.label}</span>
+                          <span className="kol-mono-xs">{filter.label}</span>
                         </button>
                       ))}
                     </div>

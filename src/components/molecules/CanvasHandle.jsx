@@ -8,9 +8,9 @@ const CanvasHandle = ({
   const baseClass = 'absolute'
 
   const typeClasses = {
-    corner: 'w-[10px] h-[10px] bg-blue-500 border border-white',
-    edge: 'w-[12px] h-[12px] bg-zinc-900 border-2 border-blue-400 rounded-full',
-    center: 'w-4 h-4 bg-blue-500/20 border border-blue-400 rounded-full cursor-move flex items-center justify-center'
+    corner: 'w-[10px] h-[10px] bg-surface-on-primary border border-surface-on-primary',
+    edge: 'w-[12px] h-[12px] bg-surface-primary border-2 border-surface-on-primary rounded-full',
+    center: 'w-4 h-4 bg-surface-on-primary/20 border border-surface-on-primary rounded-full cursor-move flex items-center justify-center'
   }
 
   const size = type === 'corner' ? 10 : type === 'edge' ? 12 : 16
@@ -28,7 +28,7 @@ const CanvasHandle = ({
       onPointerDown={onPointerDown}
       title={title}
     >
-      {type === 'center' && <span className="w-1 h-1 bg-blue-400 rounded-full" />}
+      {type === 'center' && <span className="w-1 h-1 bg-surface-on-primary rounded-full" />}
     </button>
   )
 }

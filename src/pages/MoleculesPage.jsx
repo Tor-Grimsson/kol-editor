@@ -29,31 +29,31 @@ const MoleculesPage = () => {
   const mockObject = { id: 'obj-1', name: 'Rectangle', visible: true }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-8">
+    <div className="min-h-screen bg-surface-tertiary text-auto p-8">
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Header */}
-        <div className="border-b border-zinc-800 pb-6">
+        <div className="border-b border-fg-08 pb-6">
           <h1 className="text-3xl font-bold mb-2">Component Library</h1>
-          <p className="text-zinc-400">Atomic design components for the Konva Layer Editor</p>
+          <p className="text-fg-64">Atomic design components for the Konva Layer Editor</p>
         </div>
 
         {/* Molecules Section */}
         <section className="space-y-8">
           <div>
             <h2 className="text-2xl font-semibold mb-2 text-purple-400">Molecules</h2>
-            <p className="text-zinc-400 mb-6">Simple component groups - combinations of atoms with specific purpose</p>
+            <p className="text-fg-64 mb-6">Simple component groups - combinations of atoms with specific purpose</p>
           </div>
 
           {/* ToolbarButton */}
-          <div className="border border-zinc-800 rounded-lg p-6 bg-zinc-900/50">
+          <div className="border border-fg-08 rounded-lg p-6 bg-surface-primary/50">
             <div className="mb-4">
               <h3 className="text-xl font-medium mb-1">ToolbarButton</h3>
-              <p className="text-sm text-zinc-400">Icon button with optional dropdown trigger</p>
+              <p className="text-sm text-fg-64">Icon button with optional dropdown trigger</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-2">Default State</p>
+                <p className="text-xs text-fg-48 uppercase mb-2">Default State</p>
                 <div className="flex gap-3 items-center">
                   <ToolbarButton
                     icon={PointerIcon}
@@ -64,7 +64,7 @@ const MoleculesPage = () => {
               </div>
 
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-2">Active State</p>
+                <p className="text-xs text-fg-48 uppercase mb-2">Active State</p>
                 <div className="flex gap-3 items-center">
                   <ToolbarButton
                     icon={PointerIcon}
@@ -76,7 +76,7 @@ const MoleculesPage = () => {
               </div>
 
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-2">With Dropdown</p>
+                <p className="text-xs text-fg-48 uppercase mb-2">With Dropdown</p>
                 <div className="flex gap-3 items-center">
                   <ToolbarButton
                     icon={PointerIcon}
@@ -91,10 +91,10 @@ const MoleculesPage = () => {
           </div>
 
           {/* ColorPicker */}
-          <div className="border border-zinc-800 rounded-lg p-6 bg-zinc-900/50">
+          <div className="border border-fg-08 rounded-lg p-6 bg-surface-primary/50">
             <div className="mb-4">
               <h3 className="text-xl font-medium mb-1">ColorPicker</h3>
-              <p className="text-sm text-zinc-400">Full color picker with HEX + HSB sliders + spectrum</p>
+              <p className="text-sm text-fg-64">Full color picker with HEX + HSB sliders + spectrum</p>
             </div>
 
             <div className="max-w-md">
@@ -103,10 +103,10 @@ const MoleculesPage = () => {
           </div>
 
           {/* PropertyInput */}
-          <div className="border border-zinc-800 rounded-lg p-6 bg-zinc-900/50">
+          <div className="border border-fg-08 rounded-lg p-6 bg-surface-primary/50">
             <div className="mb-4">
               <h3 className="text-xl font-medium mb-1">PropertyInput</h3>
-              <p className="text-sm text-zinc-400">Label + input combo for properties</p>
+              <p className="text-sm text-fg-64">Label + input combo for properties</p>
             </div>
 
             <div className="space-y-4 max-w-xs">
@@ -128,15 +128,15 @@ const MoleculesPage = () => {
           </div>
 
           {/* RangeSlider */}
-          <div className="border border-zinc-800 rounded-lg p-6 bg-zinc-900/50">
+          <div className="border border-fg-08 rounded-lg p-6 bg-surface-primary/50">
             <div className="mb-4">
               <h3 className="text-xl font-medium mb-1">RangeSlider</h3>
-              <p className="text-sm text-zinc-400">Range slider with numeric input</p>
+              <p className="text-sm text-fg-64">Range slider with numeric input</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-2">With Label</p>
+                <p className="text-xs text-fg-48 uppercase mb-2">With Label</p>
                 <RangeSlider
                   label="H"
                   value={rangeValue}
@@ -147,7 +147,7 @@ const MoleculesPage = () => {
               </div>
 
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-2">Without Value Display</p>
+                <p className="text-xs text-fg-48 uppercase mb-2">Without Value Display</p>
                 <RangeSlider
                   value={rangeValue}
                   onChange={(e) => setRangeValue(e.target.value)}
@@ -160,10 +160,10 @@ const MoleculesPage = () => {
           </div>
 
           {/* LayerItem */}
-          <div className="border border-zinc-800 rounded-lg p-6 bg-zinc-900/50">
+          <div className="border border-fg-08 rounded-lg p-6 bg-surface-primary/50">
             <div className="mb-4">
               <h3 className="text-xl font-medium mb-1">LayerItem</h3>
-              <p className="text-sm text-zinc-400">Expandable layer with visibility/move/delete controls</p>
+              <p className="text-sm text-fg-64">Expandable layer with visibility/move/delete controls</p>
             </div>
 
             <div className="max-w-md">
@@ -201,10 +201,10 @@ const MoleculesPage = () => {
           </div>
 
           {/* ObjectItem */}
-          <div className="border border-zinc-800 rounded-lg p-6 bg-zinc-900/50">
+          <div className="border border-fg-08 rounded-lg p-6 bg-surface-primary/50">
             <div className="mb-4">
               <h3 className="text-xl font-medium mb-1">ObjectItem</h3>
-              <p className="text-sm text-zinc-400">Object list item with controls</p>
+              <p className="text-sm text-fg-64">Object list item with controls</p>
             </div>
 
             <div className="max-w-md space-y-2">
@@ -226,16 +226,16 @@ const MoleculesPage = () => {
           </div>
 
           {/* CanvasHandle */}
-          <div className="border border-zinc-800 rounded-lg p-6 bg-zinc-900/50">
+          <div className="border border-fg-08 rounded-lg p-6 bg-surface-primary/50">
             <div className="mb-4">
               <h3 className="text-xl font-medium mb-1">CanvasHandle</h3>
-              <p className="text-sm text-zinc-400">Artboard resize/move handles</p>
+              <p className="text-sm text-fg-64">Artboard resize/move handles</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-2">Handle Types</p>
-                <div className="relative bg-zinc-800 rounded p-8 h-40 flex items-center justify-center gap-8">
+                <p className="text-xs text-fg-48 uppercase mb-2">Handle Types</p>
+                <div className="relative bg-container-primary rounded p-8 h-40 flex items-center justify-center gap-8">
                   <div className="flex items-center gap-2">
                     <CanvasHandle
                       type="corner"
@@ -243,7 +243,7 @@ const MoleculesPage = () => {
                       cursor="nwse-resize"
                       title="Corner Handle"
                     />
-                    <span className="text-xs text-zinc-500">Corner</span>
+                    <span className="text-xs text-fg-48">Corner</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CanvasHandle
@@ -252,7 +252,7 @@ const MoleculesPage = () => {
                       cursor="ns-resize"
                       title="Edge Handle"
                     />
-                    <span className="text-xs text-zinc-500">Edge</span>
+                    <span className="text-xs text-fg-48">Edge</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CanvasHandle
@@ -261,7 +261,7 @@ const MoleculesPage = () => {
                       cursor="move"
                       title="Center Handle"
                     />
-                    <span className="text-xs text-zinc-500">Center</span>
+                    <span className="text-xs text-fg-48">Center</span>
                   </div>
                 </div>
               </div>
@@ -270,9 +270,9 @@ const MoleculesPage = () => {
         </section>
 
         {/* Footer */}
-        <div className="border-t border-zinc-800 pt-6 pb-12">
-          <p className="text-sm text-zinc-500">
-            Component library structure: <Link to="/components/atoms" className="text-zinc-400">Atoms</Link> → <Link to="/components/molecules" className="text-purple-400">Molecules</Link> → <Link to="/components/organisms" className="text-zinc-400">Organisms</Link>
+        <div className="border-t border-fg-08 pt-6 pb-12">
+          <p className="text-sm text-fg-48">
+            Component library structure: <Link to="/components/atoms" className="text-fg-64">Atoms</Link> → <Link to="/components/molecules" className="text-purple-400">Molecules</Link> → <Link to="/components/organisms" className="text-fg-64">Organisms</Link>
           </p>
         </div>
       </div>

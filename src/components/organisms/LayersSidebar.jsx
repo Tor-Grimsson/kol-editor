@@ -288,8 +288,8 @@ const LayersSidebar = ({
         }
       ]}
     >
-      <div className="w-56 border-r border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden">
-        <div className="px-3 py-2 border-b border-zinc-800 uppercase tracking-wide text-zinc-500">
+      <div className="w-56 border-r border-fg-08 bg-surface-primary flex flex-col overflow-hidden">
+        <div className="px-3 py-2 border-b border-fg-08 uppercase tracking-wide text-fg-48">
           Canvas
         </div>
 
@@ -303,7 +303,7 @@ const LayersSidebar = ({
           }}
         >
           {/* Layer Section Header */}
-          <div className="px-3 py-2 uppercase tracking-wide text-zinc-500 text-xs">
+          <div className="px-3 py-2 uppercase tracking-wide text-fg-48 text-xs">
             LAYER
           </div>
 
@@ -359,7 +359,7 @@ const LayersSidebar = ({
           </SortableContext>
         </div>
 
-        <div className="p-2 border-t border-zinc-800">
+        <div className="p-2 border-t border-fg-08">
           <Button
             square
             variant="primary"

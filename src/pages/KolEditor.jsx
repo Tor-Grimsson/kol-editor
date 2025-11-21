@@ -2441,7 +2441,6 @@ const KolEditor = () => {
     })
 
     const commonProps = {
-      key: `${shape.id}-${JSON.stringify(shape.effects || [])}-${JSON.stringify(shape.filters || [])}`,
       ref: (node) => {
         if (node) {
           nodeRefs.current.set(shape.id, node)
@@ -3067,7 +3066,7 @@ const KolEditor = () => {
   }, [activeTool, isAltPressed, nodeEditMode])
 
   return (
-    <div className="min-h-screen w-full bg-zinc-900 text-[12px] text-zinc-100 flex flex-col" style={{ cursor: 'url(/icons/cursor-selector.svg) 0 0, default' }}>
+    <div className="min-h-screen w-full bg-surface-primary text-[12px] text-auto flex flex-col" style={{ cursor: 'url(/icons/cursor-selector.svg) 0 0, default' }}>
       <TopNav
         fileName={fileName}
         onFileNameChange={setFileName}
@@ -3126,7 +3125,7 @@ const KolEditor = () => {
           onInsertItem={handleInsertItem}
         />
 
-        <div className="flex-1 flex flex-col bg-zinc-950 relative min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-surface-tertiary relative min-h-0 overflow-hidden">
           <div className="toolbar-container">
             <Toolbar
               activeTool={activeTool}
@@ -3230,35 +3229,35 @@ const KolEditor = () => {
 
       {canvasDialog.open && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center text-[12px]">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 w-[320px] space-y-3">
-            <div className="text-zinc-400 uppercase tracking-wide">Canvas Size</div>
+          <div className="bg-surface-primary border border-fg-08 rounded-lg p-4 w-[320px] space-y-3">
+            <div className="text-fg-64 uppercase tracking-wide">Canvas Size</div>
             <div className="flex gap-2">
-              <label className="flex-1 flex flex-col gap-1 text-zinc-500">
+              <label className="flex-1 flex flex-col gap-1 text-fg-48">
                 Width
                 <input
                   type="number"
                   value={canvasDialog.width}
                   min={200}
                   onChange={(e) => setCanvasDialog((prev) => ({ ...prev, width: Number(e.target.value) }))}
-                  className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100"
+                  className="bg-container-primary border border-fg-08 rounded px-2 py-1 text-auto"
                 />
               </label>
-              <label className="flex-1 flex flex-col gap-1 text-zinc-500">
+              <label className="flex-1 flex flex-col gap-1 text-fg-48">
                 Height
                 <input
                   type="number"
                   value={canvasDialog.height}
                   min={200}
                   onChange={(e) => setCanvasDialog((prev) => ({ ...prev, height: Number(e.target.value) }))}
-                  className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100"
+                  className="bg-container-primary border border-fg-08 rounded px-2 py-1 text-auto"
                 />
               </label>
             </div>
             <div className="flex items-center justify-end gap-2">
-              <button className="px-3 py-1 rounded bg-zinc-800 text-zinc-200" onClick={() => setCanvasDialog((prev) => ({ ...prev, open: false }))}>
+              <button className="px-3 py-1 rounded bg-container-primary text-fg-88" onClick={() => setCanvasDialog((prev) => ({ ...prev, open: false }))}>
                 Cancel
               </button>
-              <button className="px-3 py-1 rounded bg-blue-600 text-white" onClick={handleCanvasDialogSave}>
+              <button className="px-3 py-1 rounded bg-surface-on-primary text-auto" onClick={handleCanvasDialogSave}>
                 Apply
               </button>
             </div>

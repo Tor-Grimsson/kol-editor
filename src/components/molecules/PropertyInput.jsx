@@ -13,7 +13,7 @@ const PropertyInput = ({
 }) => {
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
-      <Label className="text-zinc-500">{label}</Label>
+      <Label className="text-fg-48">{label}</Label>
       <Input
         type={type}
         value={value}
@@ -21,7 +21,7 @@ const PropertyInput = ({
         min={min}
         max={max}
         step={step}
-        className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100"
+        className="bg-container-primary border border-fg-08 rounded px-2 py-1 text-auto"
       />
     </div>
   )

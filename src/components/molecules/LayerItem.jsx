@@ -36,7 +36,7 @@ const LayerItem = ({
       {/* Drop line indicator - shows BEFORE this item */}
       {showLine && (
         <div
-          className="absolute -top-0.5 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10"
+          className="absolute -top-0.5 left-0 right-0 h-0.5 bg-surface-on-primary rounded-full z-10"
           style={{
             left: `${nestLevel * 16}px`,
             width: `calc(100% - ${nestLevel * 16}px)`
@@ -53,12 +53,12 @@ const LayerItem = ({
         {...listeners}
         className={`group px-4 rounded flex justify-between items-center overflow-hidden cursor-grab active:cursor-grabbing ${
           showOutline
-            ? 'bg-zinc-800/50 outline-2 outline-offset-[-2px] outline-blue-500'
+            ? 'bg-container-primary/50 outline-2 outline-offset-[-2px] outline-surface-on-primary'
             : isSelected
-            ? 'bg-zinc-800/50 outline-1 outline-offset-[-1px] outline-orange-500'
+            ? 'bg-container-primary/50 outline-1 outline-offset-[-1px] outline-surface-on-primary'
             : hasSelectedChild
-            ? 'bg-zinc-800/50 outline-1 outline-offset-[-1px] outline-amber-300/40'
-            : 'opacity-40 bg-zinc-800/50 outline-1 outline-offset-[-1px] outline-zinc-800/50'
+            ? 'bg-container-primary/50 outline-1 outline-offset-[-1px] outline-fg-32'
+            : 'opacity-40 bg-container-primary/50 outline-1 outline-offset-[-1px] outline-container-primary/50'
         }`}
         style={{
           height: '48px',
@@ -75,24 +75,24 @@ const LayerItem = ({
               }}
             >
               <Icon
-                name={isExpanded ? 'caret-down' : 'caret-right'}
-                folder="c"
+                name={isExpanded ? 'caret-down-ui-dropdown' : 'caret-right-ui-expand'}
+                folder="app-icons"
                 size={12}
-                className="text-zinc-400"
+                className="text-fg-64"
               />
             </div>
           )}
-          <div className="w-1 h-1 bg-zinc-300 rounded-full" />
-          <div className="text-zinc-300 text-xs font-semibold font-mono uppercase leading-3 tracking-tight">
+          <div className="w-1 h-1 bg-fg-80 rounded-full" />
+          <div className="text-fg-80 text-xs font-semibold font-mono uppercase leading-3 tracking-tight">
             CANVAS
           </div>
         </div>
         <div className="flex justify-start items-center gap-4">
           <Icon
-            name={layer.visible ? 'eye' : 'eye-off'}
-            folder="tools-name/other"
+            name={layer.visible ? 'eye-ui-visibility' : 'eye-off-ui-visibility'}
+            folder="app-icons"
             size={12}
-            className="text-white cursor-pointer"
+            className="text-auto cursor-pointer"
             onClick={(e) => {
               e.stopPropagation()
               onToggleVisibility()

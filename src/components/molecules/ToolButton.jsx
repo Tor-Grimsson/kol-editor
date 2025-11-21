@@ -18,10 +18,10 @@ const ToolButton = ({
       <button
         className={`relative h-9 px-2 rounded transition-colors group ${
           isDisabled
-            ? 'text-zinc-700 cursor-not-allowed opacity-40'
+            ? 'text-fg-24 cursor-not-allowed opacity-40'
             : isActive
-            ? 'bg-blue-600 text-white'
-            : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
+            ? 'bg-surface-on-primary text-auto'
+            : 'text-fg-64 hover:bg-container-primary hover:text-auto'
         }`}
         onMouseEnter={() => !isDisabled && setIsHovered(true)}
         onMouseLeave={() => !isDisabled && setIsHovered(false)}
@@ -45,7 +45,7 @@ const ToolButton = ({
                 onToggleDropdown()
               }}
             >
-              <Icon name="caret-down" size={8} />
+              <Icon name="caret-down-ui-dropdown" folder="app-icons" size={8} />
             </div>
           )}
         </div>
@@ -54,7 +54,7 @@ const ToolButton = ({
       {/* Dropdown menu */}
       {showDropdown && hasSubtools && (
         <div
-          className="absolute top-full mt-1 bg-zinc-900 border border-zinc-800 rounded shadow-lg py-1 z-50 w-fit"
+          className="absolute top-full mt-1 bg-surface-primary border border-fg-08 rounded py-1 z-50 w-fit"
           style={{ left: dropdownLeft }}
         >
           {tool.subtools.map((subtool) => (
@@ -62,8 +62,8 @@ const ToolButton = ({
               key={subtool.id}
               className={`w-full px-3 py-2 text-left flex items-center gap-2 ${
                 subtool.disabled
-                  ? 'text-zinc-600 cursor-not-allowed opacity-50'
-                  : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                  ? 'text-fg-32 cursor-not-allowed opacity-50'
+                  : 'text-fg-80 hover:bg-container-primary hover:text-auto'
               }`}
               onClick={() => {
                 if (!subtool.disabled) {

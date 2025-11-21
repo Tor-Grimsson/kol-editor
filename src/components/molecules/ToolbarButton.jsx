@@ -18,7 +18,7 @@ const ToolbarButton = ({
         ref={buttonRef}
         onClick={onClick}
         className={`w-9 h-9 rounded flex items-center justify-center ${
-          active ? 'bg-blue-600' : 'bg-zinc-800 hover:bg-zinc-700'
+          active ? 'bg-surface-on-primary' : 'bg-container-primary hover:bg-fg-24'
         }`}
         title={label}
       >
@@ -27,13 +27,13 @@ const ToolbarButton = ({
       {hasDropdown && (
         <button
           type="button"
-          className={`w-5 h-9 border-l border-zinc-700 text-zinc-400 ${
-            dropdownOpen ? 'bg-blue-600 text-white' : 'bg-zinc-800 hover:bg-zinc-700'
+          className={`w-5 h-9 border-l border-fg-08 text-fg-64 ${
+            dropdownOpen ? 'bg-surface-on-primary text-auto' : 'bg-container-primary hover:bg-fg-24'
           }`}
           onClick={onDropdownToggle}
           title={`${label} options`}
         >
-          <Icon name="caret-down" size={12} />
+          <Icon name="caret-down-ui-dropdown" folder="app-icons" size={12} />
         </button>
       )}
     </div>

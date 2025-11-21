@@ -5,12 +5,9 @@ import { Saturation, Hue } from 'react-color/lib/components/common'
 const CustomSketchPicker = ({ hex, hsl, hsv, onChange }) => {
   return (
     <div
+      className="bg-container-secondary rounded-lg p-2.5"
       style={{
         width: '200px',
-        padding: '10px',
-        background: '#27272a',
-        borderRadius: '8px',
-        boxShadow: '0 0 0 1px rgba(63, 63, 68, 0.05), 0 1px 3px 0 rgba(0, 0, 0, 0.15)',
       }}
     >
       <div
@@ -55,7 +52,7 @@ const CanvasColorPicker = ({ color, onChange }) => {
     <div>
       <div
         onClick={handleClick}
-        className="w-full h-16 border border-zinc-700 rounded cursor-pointer"
+        className="w-full h-16 border border-fg-08 rounded cursor-pointer"
         style={{
           backgroundColor: color,
         }}

@@ -1,6 +1,814 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
 @import "tailwindcss";
 
-:root {
-  font-family: 'JetBrains Mono', monospace;
+/**
+ * =============================================================================
+ * KOLKRABBI DESIGN SYSTEM - Consolidated
+ * =============================================================================
+ * Version: 3.1 - Context-Aware Color System
+ */
+
+@theme {
+  /* Font Families */
+  --kol-font-family-rgrot-narrow: 'RightGrotesk', 'Inter Tight', sans-serif;
+  --kol-font-family-rgrot-tight: 'RightGrotesk', 'Inter Tight', sans-serif;
+  --kol-font-family-rgrot-compact: 'RightGroteskCompact', 'Inter Tight', sans-serif;
+  --kol-font-family-body: 'Inter Tight', system-ui, -apple-system, sans-serif;
+  --kol-font-family-mono: 'JetBrains Mono', 'RightGroteskMono', 'SFMono-Regular', Consolas, monospace;
+  --kol-font-family-heading: var(--kol-font-family-rgrot-tight);
+  --kol-font-family-base: var(--kol-font-family-body);
+
+  /* Brand Colors */
+  --kol-color-brand-dark: #1e1e21;
+  --kol-color-brand-light: #fcfbf8;
+  --kol-color-brand-yellow: #f5d245;
+  --kol-color-brand-yellow-deep: #f5bb1d;
+  --kol-color-brand-orange: #a83e01;
+  --kol-color-brand-red: #bc583f;
+  --kol-color-absolute-black: #000000;
+  --kol-color-absolute-white: #ffffff;
+  --kol-color-median-dark: #0d0d0d;
+  --kol-color-median-light: #f8f8f8;
+
+  /* Neutral Grays */
+  --kol-color-neutral-50: #fafafa;
+  --kol-color-neutral-100: #f5f5f5;
+  --kol-color-neutral-200: #eeeeee;
+  --kol-color-neutral-300: #e0e0e0;
+  --kol-color-neutral-400: #bfbfbf;
+  --kol-color-neutral-500: #757575;
+  --kol-color-neutral-600: #616161;
+  --kol-color-neutral-700: #424242;
+  --kol-color-neutral-800: #212121;
+  --kol-color-neutral-900: #1e1e21;
+
+  /* Surface Tokens (Page-level) - Light Mode */
+  --kol-surface-primary: #fafafa;
+  --kol-surface-on-primary: #121215;
+  --kol-surface-secondary: #f2f2f2;
+  --kol-surface-on-secondary: #19191d;
+  --kol-surface-tertiary: #ffffff;
+  --kol-surface-on-tertiary: #0e0e11;
+  --kol-surface-inverse: #0e0e11;
+  --kol-surface-on-inverse: #fcfbf8;
+  --kol-surface-secondary-inverse: #212121;
+  --kol-surface-tertiary-inverse: #424242;
+
+  /* Surface Split Tokens */
+  --kol-surface-support-split: #eeeeee;
+  --kol-surface-support-split-inverse: #202026;
+  --kol-surface-absolute-split: #ffffff;
+  --kol-surface-absolute-split-inverse: #000000;
+
+  /* Container Tokens (Component-level) */
+  --kol-container-primary: #f5f5f5;
+  --kol-container-on-primary: #19191d;
+  --kol-container-secondary: #eeeeee;
+  --kol-container-on-secondary: #202026;
+  --kol-container-elevated: #f5f5f5;
+  --kol-container-on-elevated: #242427;
+
+  /* Accent Tokens */
+  --kol-accent-primary: #f5d245;
+  --kol-accent-on-primary: #1e1e21;
+  --kol-accent-primary-strong: #f5bb1d;
+  --kol-accent-primary-muted: color-mix(in srgb, #f5d245 18%, transparent);
+
+  /* Status Tokens */
+  --kol-status-danger: #9b3928;
+  --kol-status-on-danger: #ffffff;
+  --kol-status-danger-strong: #bc583f;
+  --kol-status-danger-muted: color-mix(in srgb, #9b3928 18%, transparent);
+
+  /* Border Tokens */
+  --kol-border-default: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent);
+  --kol-border-subtle: color-mix(in srgb, var(--kol-surface-on-primary) 4%, transparent);
+  --kol-border-strong: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+  --kol-border-hover: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+  --kol-border-focus: var(--kol-accent-primary);
+  --kol-border-active: var(--kol-accent-primary-strong);
+  --kol-focus-ring: var(--kol-accent-primary);
+
+  /* State Tokens - Hover */
+  --kol-surface-primary-hover: color-mix(in srgb, var(--kol-surface-primary) 95%, var(--kol-surface-on-primary) 5%);
+  --kol-surface-secondary-hover: color-mix(in srgb, var(--kol-surface-secondary) 95%, var(--kol-surface-on-secondary) 5%);
+  --kol-surface-tertiary-hover: color-mix(in srgb, var(--kol-surface-tertiary) 95%, var(--kol-surface-on-tertiary) 5%);
+  --kol-container-primary-hover: color-mix(in srgb, var(--kol-container-primary) 95%, var(--kol-container-on-primary) 5%);
+  --kol-container-secondary-hover: color-mix(in srgb, var(--kol-container-secondary) 95%, var(--kol-container-on-secondary) 5%);
+
+  /* State Tokens - Active */
+  --kol-surface-primary-active: color-mix(in srgb, var(--kol-surface-primary) 90%, var(--kol-surface-on-primary) 10%);
+  --kol-surface-secondary-active: color-mix(in srgb, var(--kol-surface-secondary) 90%, var(--kol-surface-on-secondary) 10%);
+  --kol-surface-tertiary-active: color-mix(in srgb, var(--kol-surface-tertiary) 90%, var(--kol-surface-on-tertiary) 10%);
+  --kol-container-primary-active: color-mix(in srgb, var(--kol-container-primary) 90%, var(--kol-container-on-primary) 10%);
+  --kol-container-secondary-active: color-mix(in srgb, var(--kol-container-secondary) 90%, var(--kol-container-on-secondary) 10%);
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Z-Index */
+  --z-base: 1;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-overlay: 50;
+  --z-modal: 100;
+  --z-toast: 200;
+  --z-nav: 1000;
+
+  /* Border Radius */
+  --radius-none: 0;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
 }
+
+/**
+ * =============================================================================
+ * DARK MODE
+ * =============================================================================
+ */
+
+:is([data-theme="dark"], .dark) {
+  --kol-surface-primary: #121215;
+  --kol-surface-on-primary: #fafafa;
+  --kol-surface-secondary: #19191d;
+  --kol-surface-on-secondary: #f8f8f8;
+  --kol-surface-tertiary: #0e0e11;
+  --kol-surface-on-tertiary: #ffffff;
+  --kol-surface-inverse: #fcfbf8;
+  --kol-surface-on-inverse: #0e0e11;
+  --kol-surface-secondary-inverse: #e0e0e0;
+  --kol-surface-tertiary-inverse: #d4d4d8;
+  --kol-surface-support-split: #202026;
+  --kol-surface-support-split-inverse: #eeeeee;
+  --kol-surface-absolute-split: #000000;
+  --kol-surface-absolute-split-inverse: #ffffff;
+  --kol-container-primary: #19191d;
+  --kol-container-on-primary: #f5f5f5;
+  --kol-container-secondary: #202026;
+  --kol-container-on-secondary: #eeeeee;
+  --kol-container-elevated: #242427;
+  --kol-container-on-elevated: #f5f5f5;
+  --kol-status-danger: #bc583f;
+  --kol-status-danger-strong: #9b3928;
+  --kol-status-danger-muted: color-mix(in srgb, #bc583f 24%, transparent);
+  --kol-accent-primary-muted: color-mix(in srgb, #f5d245 24%, transparent);
+}
+
+/**
+ * =============================================================================
+ * BASE STYLES
+ * =============================================================================
+ */
+
+:root {
+  font-family: var(--kol-font-family-mono);
+}
+
+.editor-shell {
+  background: var(--kol-surface-primary);
+  color: var(--kol-surface-on-primary);
+}
+
+/**
+ * =============================================================================
+ * UTILITY CLASSES
+ * =============================================================================
+ */
+
+@layer utilities {
+  .flex-center {
+    @apply flex justify-center items-center;
+  }
+
+  .absolute-center {
+    @apply absolute top-1/2 left-1/2;
+    transform: translate(-50%, -50%);
+  }
+
+  .text-auto {
+    color: var(--kol-surface-on-primary);
+  }
+
+  .text-auto-inverse {
+    color: var(--kol-surface-on-inverse);
+  }
+
+  .bg-auto {
+    background-color: var(--kol-surface-primary);
+  }
+
+  .bg-auto-inverse {
+    background-color: var(--kol-surface-inverse);
+  }
+
+  .border-auto {
+    border-color: var(--kol-border-default);
+  }
+
+  /* Surface Utilities */
+  .bg-surface-primary {
+    background-color: var(--kol-surface-primary);
+    color: var(--kol-surface-on-primary);
+  }
+
+  .bg-surface-secondary {
+    background-color: var(--kol-surface-secondary);
+    color: var(--kol-surface-on-secondary);
+  }
+
+  .bg-surface-tertiary {
+    background-color: var(--kol-surface-tertiary);
+    color: var(--kol-surface-on-tertiary);
+  }
+
+  .bg-surface-inverse {
+    background-color: var(--kol-surface-inverse);
+    color: var(--kol-surface-on-inverse);
+  }
+
+  /* Container Utilities */
+  .bg-container-primary {
+    background-color: var(--kol-container-primary);
+    color: var(--kol-container-on-primary);
+  }
+
+  .bg-container-secondary {
+    background-color: var(--kol-container-secondary);
+    color: var(--kol-container-on-secondary);
+  }
+
+  .bg-container-elevated {
+    background-color: var(--kol-container-elevated);
+    color: var(--kol-container-on-elevated);
+  }
+
+  /* Accent Utilities */
+  .bg-accent-primary {
+    background-color: var(--kol-accent-primary);
+    color: var(--kol-accent-on-primary);
+  }
+
+  .bg-accent-primary-muted {
+    background-color: var(--kol-accent-primary-muted);
+  }
+
+  /* Status Utilities */
+  .bg-status-danger {
+    background-color: var(--kol-status-danger);
+    color: var(--kol-status-on-danger);
+  }
+
+  .text-status-danger {
+    color: var(--kol-status-danger);
+  }
+
+  /* Opacity Background Utilities */
+  .bg-fg-01 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 1%, transparent); }
+  .bg-fg-02 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 2%, transparent); }
+  .bg-fg-04 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 4%, transparent); }
+  .bg-fg-08 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent); }
+  .bg-fg-12 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent); }
+  .bg-fg-16 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent); }
+  .bg-fg-24 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 24%, transparent); }
+  .bg-fg-32 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 32%, transparent); }
+  .bg-fg-48 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 48%, transparent); }
+  .bg-fg-64 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 64%, transparent); }
+  .bg-fg-80 { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 80%, transparent); }
+
+  /* Opacity Border Utilities */
+  .border-fg { border-color: var(--kol-surface-on-primary); }
+  .border-fg-01 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 1%, transparent); }
+  .border-fg-02 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 2%, transparent); }
+  .border-fg-04 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 4%, transparent); }
+  .border-fg-08 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent); }
+  .border-fg-12 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent); }
+  .border-fg-16 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent); }
+  .border-fg-24 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 24%, transparent); }
+  .border-fg-32 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 32%, transparent); }
+  .border-fg-48 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 48%, transparent); }
+  .border-fg-64 { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 64%, transparent); }
+
+  /* Divide Color Utilities */
+  .divide-fg-08 > :not([hidden]) ~ :not([hidden]) { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent); }
+  .divide-fg-16 > :not([hidden]) ~ :not([hidden]) { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent); }
+
+  /* Opacity Text Utilities */
+  .text-fg-01 { color: color-mix(in srgb, var(--kol-surface-on-primary) 1%, transparent); }
+  .text-fg-02 { color: color-mix(in srgb, var(--kol-surface-on-primary) 2%, transparent); }
+  .text-fg-04 { color: color-mix(in srgb, var(--kol-surface-on-primary) 4%, transparent); }
+  .text-fg-08 { color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent); }
+  .text-fg-12 { color: color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent); }
+  .text-fg-16 { color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent); }
+  .text-fg-24 { color: color-mix(in srgb, var(--kol-surface-on-primary) 24%, transparent); }
+  .text-fg-32 { color: color-mix(in srgb, var(--kol-surface-on-primary) 32%, transparent); }
+  .text-fg-48 { color: color-mix(in srgb, var(--kol-surface-on-primary) 48%, transparent); }
+  .text-fg-64 { color: color-mix(in srgb, var(--kol-surface-on-primary) 64%, transparent); }
+  .text-fg-80 { color: color-mix(in srgb, var(--kol-surface-on-primary) 80%, transparent); }
+  .text-fg-88 { color: color-mix(in srgb, var(--kol-surface-on-primary) 88%, transparent); }
+  .text-fg-96 { color: color-mix(in srgb, var(--kol-surface-on-primary) 96%, transparent); }
+
+  /* Hover Border Utilities */
+  .hover\:border-fg-08:hover { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent); }
+  .hover\:border-fg-16:hover { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent); }
+  .hover\:border-fg-24:hover { border-color: color-mix(in srgb, var(--kol-surface-on-primary) 24%, transparent); }
+
+  /* Hover Background Utilities */
+  .hover\:bg-fg-04:hover { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 4%, transparent); }
+  .hover\:bg-fg-08:hover { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 8%, transparent); }
+  .hover\:bg-fg-12:hover { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent); }
+  .hover\:bg-fg-16:hover { background-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent); }
+
+  /* Typography */
+  .kol-mono-xs {
+    font-family: var(--kol-font-family-mono);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .kol-mono-text {
+    font-family: var(--kol-font-family-mono);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+}
+
+/**
+ * =============================================================================
+ * COMPONENT CLASSES - From Design System
+ * =============================================================================
+ */
+
+@layer components {
+  /* Control Slider - Fixed padding for slider controls */
+  .control-slider {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 8px 24px;
+    border-radius: 9999px;
+    background-color: var(--kol-surface-primary);
+    border: 1px solid var(--kol-border-default);
+    transition: background-color 0.2s, color 0.2s;
+  }
+
+  /* Control Slider Minimal - No padding, background, border, or radius (for use in molecules) */
+  .control-slider-minimal {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    border-radius: 0;
+    background-color: transparent;
+    border: none;
+    transition: color 0.2s;
+  }
+
+  /* Control Dropdown - Base styles */
+  .control-dropdown {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 20px;
+    background-color: transparent;
+    border: 1px solid var(--kol-border-default);
+    transition: background-color 0.2s, color 0.2s;
+  }
+
+  /* Dropdown Size Variants */
+  .dropdown-sm {
+    padding: 6px 16px;
+    font-family: var(--kol-font-family-mono);
+    font-weight: 470;
+    font-size: 11px;
+    line-height: 100%;
+    letter-spacing: 0.03em;
+  }
+
+  .dropdown-md {
+    padding: 8px 20px;
+    font-family: var(--kol-font-family-mono);
+    font-weight: 470;
+    font-size: 12px;
+    line-height: 100%;
+    letter-spacing: 0.03em;
+  }
+
+  .dropdown-lg {
+    padding: 10px 24px;
+    font-family: var(--kol-font-family-mono);
+    font-weight: 470;
+    font-size: 14px;
+    line-height: 100%;
+    letter-spacing: 0.03em;
+  }
+
+  /* Pill Components */
+  .pill-inverse {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 16px;
+    border-radius: 9999px;
+    background-color: var(--kol-surface-on-primary);
+    font-family: var(--kol-font-family-mono);
+    color: var(--kol-surface-primary);
+    border: none;
+  }
+
+  .pill-subtle {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 16px;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+    font-family: var(--kol-font-family-mono);
+    color: var(--kol-surface-on-primary);
+    border: none;
+  }
+
+  .pill-outline {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 16px;
+    border-radius: 9999px;
+    background-color: var(--kol-surface-primary);
+    font-family: var(--kol-font-family-mono);
+    color: var(--kol-surface-on-primary);
+    border: 1px solid var(--kol-border-default);
+  }
+
+  .pill-sm { font-size: 10px; font-weight: 470; }
+  .pill-md { font-size: 12px; font-weight: 470; }
+  .pill-lg { font-size: 14px; font-weight: 470; }
+
+  /* Buttons */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    background: var(--kol-surface-on-primary);
+    color: var(--kol-surface-primary);
+    border: 1px solid transparent;
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+    cursor: pointer;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--kol-surface-secondary);
+    color: var(--kol-surface-on-primary);
+    border-color: transparent;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    background: var(--kol-surface-secondary);
+    color: var(--kol-surface-on-primary);
+    border: none;
+    transition: background-color 0.3s, color 0.3s;
+    cursor: pointer;
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--kol-surface-on-primary);
+    color: var(--kol-surface-primary);
+  }
+
+  .btn-outline {
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    background: transparent;
+    color: var(--kol-surface-on-primary);
+    border: 1px solid var(--kol-border-default);
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+    cursor: pointer;
+  }
+
+  .btn-outline:hover {
+    background-color: var(--kol-surface-secondary);
+    border-color: color-mix(in srgb, var(--kol-surface-on-primary) 24%, transparent);
+    color: var(--kol-surface-on-primary);
+  }
+
+  /* Button Sizes */
+  .btn-sm {
+    padding: 6px 16px;
+    font-family: var(--kol-font-family-mono);
+    font-weight: 470;
+    font-size: 14px;
+    line-height: 100%;
+    letter-spacing: 0.03em;
+  }
+
+  .btn-md {
+    padding: 8px 20px;
+    font-family: var(--kol-font-family-mono);
+    font-weight: 470;
+    font-size: 16px;
+    line-height: 100%;
+    letter-spacing: 0.03em;
+  }
+
+  .btn-lg {
+    padding: 10px 24px;
+    font-family: var(--kol-font-family-mono);
+    font-weight: 470;
+    font-size: 18px;
+    line-height: 100%;
+    letter-spacing: 0.03em;
+  }
+
+  /* Tags */
+  .tag {
+    display: inline-block;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: var(--kol-surface-on-primary);
+    color: var(--kol-surface-primary);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .tag-secondary {
+    display: inline-block;
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: var(--kol-surface-primary);
+    color: var(--kol-surface-on-primary);
+    border: 1px solid var(--kol-border-default);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .tag-control {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 16px;
+    border-radius: 9999px;
+    background-color: var(--kol-surface-primary);
+    font-size: 10px;
+    font-weight: 400;
+    font-family: var(--kol-font-family-mono);
+    color: var(--kol-surface-on-primary);
+    border: 1px solid var(--kol-border-default);
+    transition: background-color 0.2s, color 0.2s;
+  }
+
+  .tag-control:hover {
+    background-color: var(--kol-surface-on-primary);
+    color: var(--kol-surface-primary);
+    border-color: var(--kol-surface-on-primary);
+  }
+
+  .tag-control.is-active {
+    background-color: var(--kol-surface-on-primary);
+    color: var(--kol-surface-primary);
+    border-color: var(--kol-surface-on-primary);
+  }
+
+  /* Toggle Switch */
+  .toggle-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px solid color-mix(in srgb, var(--kol-surface-on-primary) 12%, transparent);
+    background-color: transparent;
+    color: var(--kol-surface-on-primary);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .toggle-switch:hover {
+    border-color: color-mix(in srgb, var(--kol-surface-on-primary) 18%, transparent);
+  }
+
+  .toggle-switch-label {
+    font-family: var(--kol-font-family-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .toggle-switch-indicator {
+    width: 20px;
+    height: 12px;
+    border-radius: 9999px;
+    background-color: color-mix(in srgb, var(--kol-surface-on-primary) 16%, transparent);
+    position: relative;
+    transition: background-color 0.2s ease;
+  }
+
+  .toggle-switch-indicator::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background-color: var(--kol-surface-on-primary);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+  }
+
+  .toggle-switch[data-state='on'] .toggle-switch-indicator {
+    background-color: color-mix(in srgb, var(--kol-surface-on-primary) 70%, transparent);
+  }
+
+  .toggle-switch[data-state='on'] .toggle-switch-indicator::after {
+    transform: translateX(8px);
+    background-color: var(--kol-surface-primary);
+  }
+
+  /* Checkbox */
+  .checkbox {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .checkbox input {
+    display: none;
+  }
+
+  .checkbox-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid color-mix(in srgb, var(--kol-surface-on-primary) 25%, transparent);
+    background-color: transparent;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .checkbox-indicator svg {
+    width: 10px;
+    height: 8px;
+    stroke: var(--kol-surface-primary);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .checkbox.is-active .checkbox-indicator {
+    background-color: var(--kol-surface-on-primary);
+    border-color: var(--kol-surface-on-primary);
+  }
+
+  .checkbox.is-active .checkbox-indicator svg {
+    opacity: 1;
+  }
+
+  /* Input Outline Style */
+  .input-outline {
+    border-radius: var(--radius-full);
+    background: var(--kol-surface-primary);
+    color: var(--kol-surface-on-primary);
+    border: 1px solid var(--kol-border-default);
+    transition: border-color 0.3s, background-color 0.3s;
+  }
+
+  .input-outline:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--kol-surface-on-primary) 18%, transparent);
+    background: var(--kol-surface-secondary);
+  }
+
+  .input-outline::placeholder {
+    color: var(--kol-surface-on-primary);
+    opacity: 0.5;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--kol-surface-secondary);
+    border: 1px solid var(--kol-border-default);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-10);
+    color: var(--kol-surface-on-primary);
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  }
+
+  .card:hover {
+    background: color-mix(in srgb, var(--kol-surface-on-primary) 6%, var(--kol-surface-secondary));
+    border-color: color-mix(in srgb, var(--kol-border-default) 60%, var(--kol-surface-on-primary) 40%);
+  }
+
+}
+
+/**
+ * =============================================================================
+ * SLIDER STYLES (Outside @layer for proper pseudo-element specificity)
+ * =============================================================================
+ */
+
+/* Custom Slider Styling - Black (for light mode) */
+.slider-black {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 2px;
+}
+
+.slider-black::-webkit-slider-runnable-track {
+  background: var(--kol-surface-on-primary);
+  height: 2px;
+  border-radius: 0;
+}
+
+.slider-black::-moz-range-track {
+  background: var(--kol-surface-on-primary);
+  height: 2px;
+  border-radius: 0;
+}
+
+.slider-black::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--kol-surface-on-primary);
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  margin-top: -5px;
+  border: none;
+}
+
+.slider-black::-moz-range-thumb {
+  appearance: none;
+  background: var(--kol-surface-on-primary);
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  border: none;
+}
+
+/* Custom Slider Styling - Light (for dark mode) */
+.slider-light {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 2px;
+}
+
+.slider-light::-webkit-slider-runnable-track {
+  background: var(--kol-surface-primary);
+  height: 2px;
+  border-radius: 0;
+}
+
+.slider-light::-moz-range-track {
+  background: var(--kol-surface-primary);
+  height: 2px;
+  border-radius: 0;
+}
+
+.slider-light::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--kol-surface-primary);
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  margin-top: -5px;
+  border: none;
+}
+
+.slider-light::-moz-range-thumb {
+  appearance: none;
+  background: var(--kol-surface-primary);
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  border: none;
+}
+

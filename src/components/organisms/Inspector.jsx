@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import PropertyInput from '../molecules/PropertyInput'
 import ColorPicker from '../molecules/ColorPicker'
 import RangeSlider from '../molecules/RangeSlider'
 import Input from '../atoms/Input'
 import Button from '../atoms/Button'
 import Icon from '../icons/Icon'
+import Divider from '../atoms/Divider'
 
 const Inspector = ({
   selectedLayer,
@@ -24,13 +25,13 @@ const Inspector = ({
   const [activeTab, setActiveTab] = useState('inspector')
 
   return (
-    <div className="w-80 border-l border-zinc-800 bg-zinc-900 flex flex-col">
-      <div className="border-b border-zinc-800 flex">
+    <div className="w-80 border-l border-fg-08 bg-surface-primary flex flex-col">
+      <div className="border-b border-fg-08 flex">
         <button
           className={`flex-1 px-3 py-2 uppercase tracking-wide text-xs ${
             activeTab === 'inspector'
-              ? 'text-zinc-100 bg-zinc-800'
-              : 'text-zinc-500 hover:text-zinc-300'
+              ? 'text-auto bg-container-primary'
+              : 'text-fg-48 hover:text-fg-80'
           }`}
           onClick={() => setActiveTab('inspector')}
         >
@@ -39,8 +40,8 @@ const Inspector = ({
         <button
           className={`flex-1 px-3 py-2 uppercase tracking-wide text-xs ${
             activeTab === 'filters'
-              ? 'text-zinc-100 bg-zinc-800'
-              : 'text-zinc-500 hover:text-zinc-300'
+              ? 'text-auto bg-container-primary'
+              : 'text-fg-48 hover:text-fg-80'
           }`}
           onClick={() => setActiveTab('filters')}
         >
@@ -54,12 +55,12 @@ const Inspector = ({
         {/* Canvas Name - Only when layer selected and no object selected */}
         {selectedLayer && !selectedObject && (
           <div className="flex flex-col gap-1">
-            <span className="text-zinc-500">Canvas name</span>
+            <span className="text-fg-48">Canvas name</span>
             <Input
               type="text"
               value={selectedLayer.name}
               onChange={(e) => onLayerNameChange(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100"
+              className="bg-container-primary border border-fg-08 rounded px-2 py-1 text-auto"
             />
           </div>
         )}
@@ -105,30 +106,30 @@ const Inspector = ({
 
         {/* Text Properties */}
         {selectedObject?.type === 'text' && (
-          <div className="space-y-2 border-t border-zinc-800 pt-3">
+          <div className="space-y-2 border-t border-fg-08 pt-3">
             <div className="flex items-center gap-2">
-              <span className="text-zinc-500 w-16">Font</span>
+              <span className="text-fg-48 w-16">Font</span>
               <Input
                 type="text"
                 value={selectedObject.fontFamily}
                 onChange={(e) => onObjectTextChange('fontFamily', e.target.value)}
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100"
+                className="flex-1 bg-container-primary border border-fg-08 rounded px-2 py-1 text-auto"
               />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-zinc-500 w-16">Size</span>
+              <span className="text-fg-48 w-16">Size</span>
               <Input
                 type="number"
                 min={8}
                 value={selectedObject.fontSize}
                 onChange={(e) => onObjectTextChange('fontSize', Number(e.target.value))}
-                className="w-20 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-100"
+                className="w-20 bg-container-primary border border-fg-08 rounded px-2 py-1 text-auto"
               />
               <Button
                 className={`px-3 py-1 rounded border ${
                   selectedObject.fontStyle === 'bold'
-                    ? 'bg-blue-600 border-blue-500'
-                    : 'border-zinc-700 bg-zinc-800'
+                    ? 'bg-surface-on-primary border-surface-on-primary'
+                    : 'border-fg-08 bg-container-primary'
                 }`}
                 onClick={() => onObjectTextChange('fontStyle', selectedObject.fontStyle === 'bold' ? 'normal' : 'bold')}
               >
@@ -140,7 +141,7 @@ const Inspector = ({
 
         {/* Color Picker - Show for canvas or selected object */}
         {(selectedObject || (selectedLayer && !selectedObject)) && (
-          <div className="border-t border-zinc-800 pt-3">
+          <div className="border-t border-fg-08 pt-3">
             <ColorPicker
               color={(() => {
                 if (selectedObject) return selectedObject.color || '#000000'
@@ -196,7 +197,7 @@ const Inspector = ({
         {(selectedObject || (selectedLayer && !selectedObject)) && (
           <>
             <div className="flex flex-col gap-1">
-              <span className="text-zinc-500">Blending mode</span>
+              <span className="text-fg-48">Blending mode</span>
               <select
                 value={(selectedObject?.blendMode || selectedLayer?.blendMode) || 'source-over'}
                 onChange={(e) => {
@@ -207,7 +208,7 @@ const Inspector = ({
                   }
                 }}
                 style={{ background: '#27272a', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }}
-                className="rounded px-2 py-1 text-zinc-100 cursor-pointer"
+                className="rounded px-2 py-1 text-auto cursor-pointer"
               >
                 <option value="source-over">Normal</option>
                 <option value="multiply">Multiply</option>
@@ -229,13 +230,13 @@ const Inspector = ({
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-zinc-500">Layer effects</span>
+              <span className="text-fg-48">Layer effects</span>
 
               {/* Display active effects */}
               {((selectedObject?.effects || selectedLayer?.effects) || []).map((effect, index) => (
                 <div key={index} className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-zinc-400 text-xs uppercase tracking-wide">
+                    <span className="text-fg-64 text-xs uppercase tracking-wide">
                       {effect.type === 'drop-shadow' && 'Drop Shadow'}
                       {effect.type === 'blur' && 'Layer Blur'}
                       {effect.type === 'background-blur' && 'Background Blur'}
@@ -251,7 +252,7 @@ const Inspector = ({
                           onLayerPropertyChange('effects', newEffects)
                         }
                       }}
-                      className="text-zinc-600 hover:text-zinc-400 text-lg leading-none"
+                      className="text-fg-32 hover:text-fg-64 text-lg leading-none"
                     >
                       ×
                     </button>
@@ -261,7 +262,7 @@ const Inspector = ({
                   {effect.type === 'drop-shadow' && (
                     <>
                       <div className="space-y-1">
-                        <label className="text-zinc-500 text-[10px] uppercase">Color</label>
+                        <label className="text-fg-48 text-[10px] uppercase">Color</label>
                         <input
                           type="color"
                           value={effect.color?.startsWith('#') ? effect.color : '#000000'}
@@ -275,7 +276,7 @@ const Inspector = ({
                               onLayerPropertyChange('effects', newEffects)
                             }
                           }}
-                          className="w-full h-8 bg-transparent border border-zinc-700 rounded cursor-pointer"
+                          className="w-full h-8 bg-transparent border border-fg-08 rounded cursor-pointer"
                         />
                       </div>
                       <RangeSlider
@@ -295,7 +296,7 @@ const Inspector = ({
                         max={100}
                       />
                       <div className="space-y-1">
-                        <label className="text-zinc-500 text-[10px] uppercase">X Offset</label>
+                        <label className="text-fg-48 text-[10px] uppercase">X Offset</label>
                         <input
                           type="number"
                           value={effect.offsetX}
@@ -309,11 +310,11 @@ const Inspector = ({
                               onLayerPropertyChange('effects', newEffects)
                             }
                           }}
-                          className="w-full bg-transparent border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-xs"
+                          className="w-full bg-transparent border border-fg-08 rounded px-2 py-1 text-auto text-xs"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-zinc-500 text-[10px] uppercase">Y Offset</label>
+                        <label className="text-fg-48 text-[10px] uppercase">Y Offset</label>
                         <input
                           type="number"
                           value={effect.offsetY}
@@ -327,11 +328,11 @@ const Inspector = ({
                               onLayerPropertyChange('effects', newEffects)
                             }
                           }}
-                          className="w-full bg-transparent border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-xs"
+                          className="w-full bg-transparent border border-fg-08 rounded px-2 py-1 text-auto text-xs"
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-zinc-500 text-[10px] uppercase">Blur</label>
+                        <label className="text-fg-48 text-[10px] uppercase">Blur</label>
                         <input
                           type="number"
                           value={effect.blur}
@@ -345,7 +346,7 @@ const Inspector = ({
                               onLayerPropertyChange('effects', newEffects)
                             }
                           }}
-                          className="w-full bg-transparent border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-xs"
+                          className="w-full bg-transparent border border-fg-08 rounded px-2 py-1 text-auto text-xs"
                         />
                       </div>
                     </>
@@ -354,7 +355,7 @@ const Inspector = ({
                   {/* Blur parameters */}
                   {(effect.type === 'blur' || effect.type === 'background-blur') && (
                     <div className="space-y-1">
-                      <label className="text-zinc-500 text-[10px] uppercase">Radius</label>
+                      <label className="text-fg-48 text-[10px] uppercase">Radius</label>
                       <input
                         type="number"
                         value={effect.radius}
@@ -368,7 +369,7 @@ const Inspector = ({
                             onLayerPropertyChange('effects', newEffects)
                           }
                         }}
-                        className="w-full bg-transparent border border-zinc-700 rounded px-2 py-1 text-zinc-100 text-xs"
+                        className="w-full bg-transparent border border-fg-08 rounded px-2 py-1 text-auto text-xs"
                       />
                     </div>
                   )}
@@ -407,9 +408,9 @@ const Inspector = ({
                               onLayerPropertyChange('effects', newEffects)
                             }
                           }}
-                          className="w-4 h-4 accent-blue-500"
+                          className="w-4 h-4 accent-surface-on-primary"
                         />
-                        <label htmlFor={`noise-mono-${index}`} className="text-zinc-400 text-xs">
+                        <label htmlFor={`noise-mono-${index}`} className="text-fg-64 text-xs">
                           Monochromatic
                         </label>
                       </div>
@@ -455,7 +456,7 @@ const Inspector = ({
                   e.target.value = ''
                 }}
                 style={{ background: '#27272a', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }}
-                className="rounded px-2 py-1 text-zinc-100 cursor-pointer"
+                className="rounded px-2 py-1 text-auto cursor-pointer"
               >
                 <option value="">Add effect...</option>
                 <option value="drop-shadow">Drop Shadow</option>
@@ -469,7 +470,7 @@ const Inspector = ({
 
         {/* Boolean Group Controls */}
         {selectedObject?.type === 'boolean' && (
-          <div className="border-t border-zinc-800 pt-3">
+          <div className="border-t border-fg-08 pt-3">
             <Button
               variant="primary"
               onClick={onExpandBooleanGroup}
@@ -487,32 +488,34 @@ const Inspector = ({
           <>
             {/* Filter Stack - Show all applied filters */}
             {selectedObject && selectedObject.filters && selectedObject.filters.length > 0 ? (
-              <div className="space-y-3">
-                {selectedObject.filters.map((filter) => {
+              <div>
+                {selectedObject.filters.map((filter, index) => {
                   const filterLabel = filter.type.replace('filter-', '').replace(/-/g, ' ').toUpperCase()
 
                   return (
-                    <div key={filter.id} className="border border-zinc-700/50 rounded bg-zinc-900/50 p-2">
+                    <Fragment key={filter.id}>
+                      {index > 0 && <Divider />}
+                      <div className="py-3 first:pt-0 last:pb-0">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => onToggleFilterEnabled && onToggleFilterEnabled(selectedObject.id, filter.id)}
                             className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${
                               filter.enabled
-                                ? 'bg-blue-600 border-blue-600'
-                                : 'bg-transparent border-zinc-600'
+                                ? 'bg-surface-on-primary border-blue-600'
+                                : 'bg-transparent border-fg-08'
                             }`}
                           >
-                            {filter.enabled && <span className="text-white text-[10px]">✓</span>}
+                            {filter.enabled && <span className="text-auto text-[10px]">✓</span>}
                           </button>
-                          <div className="text-zinc-300 text-xs font-medium flex items-center gap-1.5">
-                            <Icon name="color-palette" folder="tools-name/other" size={12} />
+                          <div className="text-fg-80 text-xs font-medium flex items-center gap-1.5">
+                            <Icon name="color-palette-tool-filter" folder="app-icons" size={12} />
                             {filterLabel}
                           </div>
                         </div>
                         <button
                           onClick={() => onRemoveFilter && onRemoveFilter(selectedObject.id, filter.id)}
-                          className="text-zinc-600 hover:text-zinc-400 text-base leading-none"
+                          className="text-fg-32 hover:text-fg-64 text-base leading-none"
                         >
                           ×
                         </button>
@@ -790,7 +793,7 @@ const Inspector = ({
                                       scaleX: 10, scaleY: 10, frequency: 0.5, octaves: 2, persistence: 0.3
                                     })
                                   }}
-                                  className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded"
+                                  className="px-2 py-0.5 text-[10px] bg-container-primary hover:bg-fg-24 border border-fg-08 rounded"
                                 >
                                   Subtle
                                 </button>
@@ -800,7 +803,7 @@ const Inspector = ({
                                       scaleX: 30, scaleY: 30, frequency: 1, octaves: 3, persistence: 0.5
                                     })
                                   }}
-                                  className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded"
+                                  className="px-2 py-0.5 text-[10px] bg-container-primary hover:bg-fg-24 border border-fg-08 rounded"
                                 >
                                   Wavy
                                 </button>
@@ -810,7 +813,7 @@ const Inspector = ({
                                       scaleX: 50, scaleY: 50, frequency: 2, octaves: 5, persistence: 0.7
                                     })
                                   }}
-                                  className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded"
+                                  className="px-2 py-0.5 text-[10px] bg-container-primary hover:bg-fg-24 border border-fg-08 rounded"
                                 >
                                   Turbulent
                                 </button>
@@ -820,7 +823,7 @@ const Inspector = ({
                                       scaleX: 80, scaleY: 20, frequency: 0.3, octaves: 2, persistence: 0.4
                                     })
                                   }}
-                                  className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded"
+                                  className="px-2 py-0.5 text-[10px] bg-container-primary hover:bg-fg-24 border border-fg-08 rounded"
                                 >
                                   Horizontal
                                 </button>
@@ -830,7 +833,7 @@ const Inspector = ({
                                       scaleX: 20, scaleY: 80, frequency: 0.3, octaves: 2, persistence: 0.4
                                     })
                                   }}
-                                  className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded"
+                                  className="px-2 py-0.5 text-[10px] bg-container-primary hover:bg-fg-24 border border-fg-08 rounded"
                                 >
                                   Vertical
                                 </button>
@@ -840,7 +843,7 @@ const Inspector = ({
                                       scaleX: 100, scaleY: 100, frequency: 3, octaves: 6, persistence: 0.8
                                     })
                                   }}
-                                  className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded"
+                                  className="px-2 py-0.5 text-[10px] bg-container-primary hover:bg-fg-24 border border-fg-08 rounded"
                                 >
                                   Extreme
                                 </button>
@@ -850,7 +853,7 @@ const Inspector = ({
                                       scaleX: 15, scaleY: 15, frequency: 5, octaves: 4, persistence: 0.6
                                     })
                                   }}
-                                  className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded"
+                                  className="px-2 py-0.5 text-[10px] bg-container-primary hover:bg-fg-24 border border-fg-08 rounded"
                                 >
                                   Fine Grain
                                 </button>
@@ -860,7 +863,7 @@ const Inspector = ({
                                       scaleX: 60, scaleY: 60, frequency: 0.2, octaves: 1, persistence: 0.2
                                     })
                                   }}
-                                  className="px-2 py-0.5 text-[10px] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded"
+                                  className="px-2 py-0.5 text-[10px] bg-container-primary hover:bg-fg-24 border border-fg-08 rounded"
                                 >
                                   Large Waves
                                 </button>
@@ -1421,11 +1424,12 @@ const Inspector = ({
                         </>
                       )}
                     </div>
+                    </Fragment>
                   )
                 })}
               </div>
             ) : (
-              <div className="text-zinc-500 text-sm text-center py-8">
+              <div className="text-fg-48 text-sm text-center py-8">
                 No filters applied.
                 <br />
                 Select a filter from the toolbar to add.

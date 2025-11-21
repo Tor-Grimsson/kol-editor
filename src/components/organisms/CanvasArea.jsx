@@ -100,7 +100,7 @@ const CanvasArea = ({
   return (
     <div className="flex-1 flex flex-col relative min-h-0 overflow-hidden" style={{ backgroundColor: canvasBackground }}>
       <div className="flex-1 flex overflow-hidden min-h-0 h-full" style={{ backgroundColor: canvasBackground }}>
-        <div className="relative border border-zinc-800 shadow-inner flex-1 overflow-hidden" style={{ backgroundColor: canvasBackground }}>
+        <div className="relative flex-1 overflow-hidden" style={{ backgroundColor: canvasBackground }}>
           {/* Konva Stage - ALWAYS PRESENT for infinite canvas */}
           <Stage
             width={window.innerWidth}
@@ -362,19 +362,18 @@ const CanvasArea = ({
 
               {/* Artboard Frame Border */}
               <div
-                className="absolute border border-blue-500 shadow-lg pointer-events-none"
+                className="absolute border border-surface-on-primary pointer-events-none"
                 style={{
                   width: canvasSize.width * zoomLevel,
                   height: canvasSize.height * zoomLevel,
                   top: artboardPosition.y * zoomLevel + stagePosition.y,
                   left: artboardPosition.x * zoomLevel + stagePosition.x,
-                  boxShadow: '0 0 0 1px rgba(59,130,246,0.6)',
                 }}
               />
 
           {/* Canvas Size Label */}
           <div
-            className="absolute bg-blue-600 text-white text-[10px] px-3 py-1 rounded-full shadow"
+            className="absolute bg-surface-on-primary text-auto text-[10px] px-3 py-1 rounded-full"
             style={{
               top: (artboardPosition.y + canvasSize.height) * zoomLevel + stagePosition.y + 10,
               left: (artboardPosition.x + canvasSize.width / 2) * zoomLevel + stagePosition.x - 30,

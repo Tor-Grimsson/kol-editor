@@ -1,5 +1,6 @@
 import Button from '../atoms/Button'
 import Icon from '../icons/Icon'
+import ThemeToggle from '../atoms/ThemeToggle'
 
 const TopNav = ({
   fileName,
@@ -10,7 +11,7 @@ const TopNav = ({
   canvasSize
 }) => {
   return (
-    <nav className="w-full border-b border-zinc-800 bg-zinc-900 px-4 py-2 flex items-center justify-between">
+    <nav className="w-full border-b border-fg-08 bg-surface-primary px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <Button
           square
@@ -26,7 +27,7 @@ const TopNav = ({
           type="text"
           value={fileName}
           onChange={(e) => onFileNameChange(e.target.value)}
-          className="text-zinc-100 font-medium bg-transparent border-none outline-none focus:bg-zinc-800 px-2 py-1 rounded"
+          className="text-auto font-medium bg-transparent border-none outline-none focus:bg-fg-08 px-2 py-1 rounded kol-mono-text"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -36,7 +37,7 @@ const TopNav = ({
           title="Canvas Size"
           onClick={onCanvasSizeClick}
         >
-          <Icon name="layout" folder="tools-name/shape-align" size={20} />
+          <Icon name="layout-tool-nav" folder="app-icons" size={20} />
         </Button>
         <Button
           square
@@ -44,8 +45,9 @@ const TopNav = ({
           title="Clear Document"
           onClick={onClearDocument}
         >
-          <Icon name="corner-diag" folder="tools-name/shape-align" size={20} />
+          <Icon name="corner-diag-tool-nav" folder="app-icons" size={20} />
         </Button>
+        <ThemeToggle variant="icon" />
       </div>
     </nav>
   )
