@@ -35,7 +35,7 @@ const SidebarMenuItem = ({
     ${
       isCollapsed
          ? "flex h-10 w-10 items-center justify-center"
-         : "inline-flex w-full items-center justify-between px-4 py-2 text-sm normal-case"
+         : "inline-flex w-full items-center justify-between px-4 py-2 kol-mono-sm normal-case"
    }`;
 
    // Add rounded-full for non-group items when collapsed
@@ -54,7 +54,7 @@ const SidebarMenuItem = ({
       <span className="flex items-center gap-3">
          <Icon name={icon} size={16} />
          {!isCollapsed && (
-            <span className="kol-mono-text text-[14px]">{label}</span>
+            <span className="kol-mono-text">{label}</span>
          )}
       </span>
    );
@@ -99,8 +99,8 @@ const SidebarMenuItem = ({
                                  to={child.path}
                                  className={({ isActive }) => {
                                     const baseClasses = isCollapsed
-                                       ? "sidebar-menu-item inline-flex items-center gap-3 px-4 py-2 kol-mono-text text-[14px]"
-                                       : "sidebar-menu-item inline-flex items-center gap-3 px-4 py-2 kol-mono-text text-[14px]";
+                                       ? "sidebar-menu-item inline-flex items-center gap-3 px-4 py-2 kol-mono-text"
+                                       : "sidebar-menu-item inline-flex items-center gap-3 px-4 py-2 kol-mono-text";
 
                                     return `${baseClasses} ${isActive ? "is-active" : ""}`.trim();
                                  }}
@@ -111,7 +111,7 @@ const SidebarMenuItem = ({
                            ) : (
                               <a
                                  href={child.path}
-                                 className="sidebar-menu-item inline-flex items-center gap-3 px-4 py-2 kol-mono-text text-[14px]"
+                                 className="sidebar-menu-item inline-flex items-center gap-3 px-4 py-2 kol-mono-text"
                               >
                                  {child.icon && <Icon name={child.icon} size={16} />}
                                  <span>{child.label}</span>

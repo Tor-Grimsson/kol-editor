@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 const iconCache = new Map()
 
 // Vite's import.meta.glob for dynamic SVG imports
+// Load both active and library icons (library can be used for features in development)
 const iconModules = import.meta.glob('./svg/**/*.svg', { query: '?raw', import: 'default' })
 
 const fetchIcon = async (path) => {

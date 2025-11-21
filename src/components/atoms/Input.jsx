@@ -2,9 +2,9 @@ import React from 'react'
 import Icon from "../icons/Icon"
 
 const SIZE_MAP = {
-  sm: { fontSize: 11, paddingY: 12, paddingX: 24, icon: 12 },
-  md: { fontSize: 12, paddingY: 14, paddingX: 24, icon: 14 },
-  lg: { fontSize: 14, paddingY: 16, paddingX: 24, icon: 16 }
+  sm: { fontSize: 11, icon: 12 },
+  md: { fontSize: 12, icon: 14 },
+  lg: { fontSize: 14, icon: 16 }
 }
 
 const Input = ({
@@ -62,23 +62,25 @@ const Input = ({
   const inlineStyle = {
     fontSize: `${metrics.fontSize}px`,
     lineHeight: '120%',
-    padding: `${metrics.paddingY}px ${metrics.paddingX}px`,
     ...style
   }
 
   const resolvedIconSize = iconLeft ? (iconSize ?? metrics.icon) : null
 
+  // Icon positioning - use CSS padding values
+  const iconLeftPosition = resolvedSize === 'sm' ? 16 : resolvedSize === 'lg' ? 24 : 20
+
   if (iconLeft && resolvedIconSize) {
-    inlineStyle.paddingLeft = metrics.paddingX + resolvedIconSize + 12
+    inlineStyle.paddingLeft = `calc(${iconLeftPosition}px + ${resolvedIconSize}px + 12px)`
   }
 
   return (
-    <div className="relative inline-flex w-full items-center">
+    <div className="relative flex w-full items-center">
       {iconLeft && (
         <span
           className="absolute flex items-center text-auto opacity-50 pointer-events-none"
           style={{
-            left: `${metrics.paddingX}px`,
+            left: `${iconLeftPosition}px`,
             top: '50%',
             transform: 'translateY(-50%)'
           }}
@@ -91,7 +93,7 @@ const Input = ({
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className={combinedClass}
+        className={`${combinedClass} w-full`}
         style={inlineStyle}
         {...props}
       />

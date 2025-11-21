@@ -17,13 +17,13 @@ export default function ButtonNav({
     >
       {isBack && (
         <span className="inline-flex items-center h-[12px]">
-          <Icon name="arrow-up" size={12} className={iconRotation} />
+          <Icon name="arrow-up" folder="active/navigation" size={12} className={iconRotation} />
         </span>
       )}
       <span className="kol-helper-xs">{label}</span>
       {!isBack && (
         <span className="inline-flex items-center h-[12px]">
-          <Icon name="arrow-up" size={12} className={iconRotation} />
+          <Icon name="arrow-up" folder="active/navigation" size={12} className={iconRotation} />
         </span>
       )}
     </button>

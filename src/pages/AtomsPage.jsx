@@ -61,13 +61,13 @@ const AtomsPage = () => {
                 <div className="flex gap-3 items-center">
                   <Button variant="primary" square title="Add">+</Button>
                   <Button variant="default" square title="Delete">
-                    <Icon name="trash" size={16} />
+                    <Icon name="trash" folder="active/actions" size={16} />
                   </Button>
                   <Button variant="ghost" square title="Settings">
-                    <Icon name="caret-down" size={16} />
+                    <Icon name="caret-down" folder="active/ui" size={16} />
                   </Button>
                   <Button variant="primary" square>
-                    <Icon name="star" size={16} />
+                    <Icon name="star" folder="active/content" size={16} />
                   </Button>
                 </div>
               </div>
@@ -198,34 +198,34 @@ const AtomsPage = () => {
               <div>
                 <p className="text-xs text-fg-48 uppercase mb-2">Sizes</p>
                 <div className="flex gap-4 items-center">
-                  <Icon name="star" size={16} />
-                  <Icon name="star" size={24} />
-                  <Icon name="star" size={32} />
-                  <Icon name="star" size={48} />
+                  <Icon name="star" folder="active/content" size={16} />
+                  <Icon name="star" folder="active/content" size={24} />
+                  <Icon name="star" folder="active/content" size={32} />
+                  <Icon name="star" folder="active/content" size={48} />
                 </div>
               </div>
 
               <div>
                 <p className="text-xs text-fg-48 uppercase mb-2">Colors (inherit from parent)</p>
                 <div className="flex gap-4 items-center">
-                  <span className="text-blue-400"><Icon name="star" size={24} /></span>
-                  <span className="text-pink-400"><Icon name="star" size={24} /></span>
-                  <span className="text-green-400"><Icon name="star" size={24} /></span>
-                  <span className="text-yellow-400"><Icon name="star" size={24} /></span>
+                  <span className="text-blue-400"><Icon name="star" folder="active/content" size={24} /></span>
+                  <span className="text-pink-400"><Icon name="star" folder="active/content" size={24} /></span>
+                  <span className="text-green-400"><Icon name="star" folder="active/content" size={24} /></span>
+                  <span className="text-yellow-400"><Icon name="star" folder="active/content" size={24} /></span>
                 </div>
               </div>
 
               <div>
                 <p className="text-xs text-fg-48 uppercase mb-2">Sample Icons</p>
                 <div className="flex gap-4 items-center flex-wrap">
-                  <Icon name="star" size={24} title="Star" />
-                  <Icon name="brush" size={24} title="Brush" />
-                  <Icon name="shape-square" size={24} title="Square" />
-                  <Icon name="shape-circle" size={24} title="Circle" />
-                  <Icon name="pencil" size={24} title="Pencil" />
+                  <Icon name="star" folder="active/content" size={24} title="Star" />
+                  <Icon name="brush" folder="active/tools" size={24} title="Brush" />
+                  <Icon name="square" folder="active/shapes" size={24} title="Square" />
+                  <Icon name="circle" folder="active/shapes" size={24} title="Circle" />
+                  <Icon name="pencil" folder="active/tools" size={24} title="Pencil" />
                   <Icon name="trash" size={24} title="Trash" />
-                  <Icon name="move" size={24} title="Move" />
-                  <Icon name="grid" size={24} title="Grid" />
+                  <Icon name="move" folder="active/tools" size={24} title="Move" />
+                  <Icon name="grid" folder="active/tools" size={24} title="Grid" />
                 </div>
               </div>
             </div>

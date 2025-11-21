@@ -55,7 +55,7 @@ const MiniColorPicker = ({ color, opacity, label, onChange }) => {
 
   return (
     <div className="flex-1">
-      <label className="text-fg-48 uppercase text-[10px]">{label}</label>
+      <label className="text-fg-48 kol-helper-uc-xxs">{label}</label>
       <div className="flex items-center gap-2">
         <div
           className="w-8 h-8 rounded border border-fg-08 cursor-pointer hover:border-fg-08"
@@ -180,7 +180,7 @@ const ColorPicker = ({
             onClick={() => setDropdownOpen(!dropdownOpen)}
           >
             <span>Fill</span>
-            <Icon name="caret-down-ui-dropdown" folder="app-icons" size={12} />
+            <Icon name="dropdown-caret" folder="active/content" size={12} />
           </button>
           {dropdownOpen && (
             <>
@@ -189,7 +189,7 @@ const ColorPicker = ({
                 {['solid', 'gradient', 'image'].map((type) => (
                   <button
                     key={type}
-                    className={`w-full px-3 py-1.5 text-left text-sm hover:bg-fg-24 ${fillType === type ? 'text-auto' : 'text-fg-64'}`}
+                    className={`w-full px-3 py-1.5 text-left kol-mono-sm hover:bg-fg-24 ${fillType === type ? 'text-auto' : 'text-fg-64'}`}
                     onClick={() => handleFillTypeSelect(type)}
                   >
                     {fillTypeLabels[type]}
@@ -199,7 +199,7 @@ const ColorPicker = ({
             </>
           )}
         </div>
-        <span className="text-fg-48 text-xs">{fillTypeLabels[fillType]}</span>
+        <span className="text-fg-48 kol-mono-xs">{fillTypeLabels[fillType]}</span>
       </div>
 
       {/* Solid Color UI */}
@@ -212,8 +212,8 @@ const ColorPicker = ({
               onClick={handleSwatchClick}
             />
             <div className="flex-1">
-              <label className="text-fg-48 uppercase text-[10px]">HEX</label>
-              <div className="flex items-center gap-2 bg-container-primary border border-fg-08 rounded px-2 py-1 font-mono text-sm">
+              <label className="text-fg-48 kol-helper-uc-xxs">HEX</label>
+              <div className="flex items-center gap-2 bg-container-primary border border-fg-08 rounded px-2 py-1 kol-mono-sm">
                 <span>#</span>
                 <input
                   type="text"
@@ -266,7 +266,7 @@ const ColorPicker = ({
             />
           </div>
 
-          <p className="text-fg-48 text-xs">Drag handles on canvas to adjust direction</p>
+          <p className="text-fg-48 kol-mono-xs">Drag handles on canvas to adjust direction</p>
         </>
       )}
 
@@ -287,12 +287,12 @@ const ColorPicker = ({
             {fillImageUrl ? (
               <img src={fillImageUrl} alt="Fill" className="w-full h-full object-cover" />
             ) : (
-              <span className="text-fg-48 text-sm">Click to upload image</span>
+              <span className="text-fg-48 kol-mono-sm">Click to upload image</span>
             )}
           </div>
           {fillImageUrl && (
             <button
-              className="w-full py-1.5 text-sm text-fg-64 hover:text-fg-80 border border-fg-08 rounded hover:border-fg-08"
+              className="w-full py-1.5 kol-mono-sm text-fg-64 hover:text-fg-80 border border-fg-08 rounded hover:border-fg-08"
               onClick={() => fileInputRef.current?.click()}
             >
               Change Image

@@ -53,7 +53,7 @@ const ObjectItem = ({
           marginLeft: `${nestLevel * 16}px`
         }}
       >
-        <div className="text-fg-80 text-xs font-semibold font-mono uppercase leading-3 tracking-tight">
+        <div className="text-fg-80 kol-mono-xs font-semibold uppercase leading-3 tracking-tight">
           OBJECT
         </div>
         <div className="flex justify-start items-center gap-4">

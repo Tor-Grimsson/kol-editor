@@ -17,6 +17,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react'
 import LayerItem from '../molecules/LayerItem'
 import ObjectItem from '../molecules/ObjectItem'
 import Button from '../atoms/Button'
+import Icon from '../icons/Icon'
 
 const LayersSidebar = ({
   layers,
@@ -146,7 +147,6 @@ const LayersSidebar = ({
     const shape = shapes[active.id]
     const isFrame = shape && shape.type === 'frame'
     setActiveType(isFrame ? 'frame' : 'object')
-    console.log('DRAG START:', { id: active.id, shape, isFrame, type: shape?.type })
   }
 
   const handleDragMove = (event) => {
@@ -236,21 +236,17 @@ const LayersSidebar = ({
       return
     }
 
-    console.log('DROP:', { activeId: active.id, overId: over.id, dropPosition, activeType })
 
     // Use position-based logic
     if (dropPosition === 'inside') {
       // Nest into the target frame
-      console.log('Dropping INSIDE frame')
       if (activeType === 'frame') {
         onNestFrameInFrame(active.id, over.id)
       } else {
-        console.log('Calling onMoveObjectToFrame')
         onMoveObjectToFrame(active.id, over.id)
       }
     } else if (dropPosition === 'before' || dropPosition === 'after') {
       // Insert before or after the target item
-      console.log('Dropping', dropPosition)
       onInsertItem(active.id, over.id, dropPosition)
     }
 
@@ -303,7 +299,7 @@ const LayersSidebar = ({
           }}
         >
           {/* Layer Section Header */}
-          <div className="px-3 py-2 uppercase tracking-wide text-fg-48 text-xs">
+          <div className="px-3 py-2 uppercase tracking-wide text-fg-48 kol-mono-xs">
             LAYER
           </div>
 
@@ -365,8 +361,9 @@ const LayersSidebar = ({
             variant="primary"
             onClick={onAddLayer}
             title="Add canvas"
+            className="!w-9 !h-9 !min-w-0 !p-0"
           >
-            +
+            <Icon name="plus" folder="active/ui" size={16} />
           </Button>
         </div>
       </div>

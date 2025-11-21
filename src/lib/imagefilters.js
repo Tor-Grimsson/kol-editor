@@ -261,21 +261,453 @@ ImageFilters.utils = {
 };
 
 
-// TODO
-ImageFilters.Translate = function (srcImageData, x, y, interpolation) {
+// Helper function for sampling pixels with interpolation and edge handling
+// edgeMode: 'clamp' (default), 'wrap', 'mirror', 'transparent'
+ImageFilters._samplePixel = function (srcPixels, srcWidth, srcHeight, x, y, interpolation, edgeMode) {
+    interpolation = interpolation || 'bilinear';
+    edgeMode = edgeMode || 'clamp';
 
+    // Handle edge actions for coordinates outside bounds
+    var handleEdge = function(coord, max) {
+        if (edgeMode === 'wrap') {
+            // Wrap around to opposite edge
+            coord = coord % max;
+            if (coord < 0) coord += max;
+            return coord;
+        } else if (edgeMode === 'mirror') {
+            // Mirror/reflect at edges
+            if (coord < 0) {
+                coord = Math.abs(coord);
+            }
+            if (coord >= max) {
+                coord = 2 * max - coord - 2;
+            }
+            // Ensure within bounds after mirror
+            coord = Math.max(0, Math.min(max - 1, coord));
+            return coord;
+        } else if (edgeMode === 'transparent') {
+            // Return null to indicate transparent
+            if (coord < 0 || coord >= max) return null;
+            return coord;
+        } else {
+            // Clamp to image bounds (default)
+            return Math.max(0, Math.min(max - 1, coord));
+        }
+    };
+
+    // Check for transparent edge mode early
+    if (edgeMode === 'transparent' && (x < 0 || y < 0 || x >= srcWidth || y >= srcHeight)) {
+        return [0, 0, 0, 0];
+    }
+
+    // Apply edge handling based on mode
+    if (edgeMode !== 'clamp') {
+        x = handleEdge(x, srcWidth);
+        y = handleEdge(y, srcHeight);
+        if (x === null || y === null) {
+            return [0, 0, 0, 0]; // Transparent
+        }
+    } else {
+        // Clamp coordinates to image bounds
+        x = Math.max(0, Math.min(srcWidth - 1, x));
+        y = Math.max(0, Math.min(srcHeight - 1, y));
+    }
+
+    if (interpolation === 'nearest') {
+        // Nearest neighbor - fastest
+        var ix = Math.round(x);
+        var iy = Math.round(y);
+        var index = (iy * srcWidth + ix) << 2;
+        return [
+            srcPixels[index],
+            srcPixels[index + 1],
+            srcPixels[index + 2],
+            srcPixels[index + 3]
+        ];
+    }
+    else if (interpolation === 'bilinear') {
+        // Bilinear interpolation - smooth, good quality
+        var x0 = Math.floor(x);
+        var y0 = Math.floor(y);
+        var x1 = Math.min(x0 + 1, srcWidth - 1);
+        var y1 = Math.min(y0 + 1, srcHeight - 1);
+
+        var dx = x - x0;
+        var dy = y - y0;
+
+        var idx00 = (y0 * srcWidth + x0) << 2;
+        var idx10 = (y0 * srcWidth + x1) << 2;
+        var idx01 = (y1 * srcWidth + x0) << 2;
+        var idx11 = (y1 * srcWidth + x1) << 2;
+
+        var r = (1 - dx) * (1 - dy) * srcPixels[idx00] +
+                dx * (1 - dy) * srcPixels[idx10] +
+                (1 - dx) * dy * srcPixels[idx01] +
+                dx * dy * srcPixels[idx11];
+
+        var g = (1 - dx) * (1 - dy) * srcPixels[idx00 + 1] +
+                dx * (1 - dy) * srcPixels[idx10 + 1] +
+                (1 - dx) * dy * srcPixels[idx01 + 1] +
+                dx * dy * srcPixels[idx11 + 1];
+
+        var b = (1 - dx) * (1 - dy) * srcPixels[idx00 + 2] +
+                dx * (1 - dy) * srcPixels[idx10 + 2] +
+                (1 - dx) * dy * srcPixels[idx01 + 2] +
+                dx * dy * srcPixels[idx11 + 2];
+
+        var a = (1 - dx) * (1 - dy) * srcPixels[idx00 + 3] +
+                dx * (1 - dy) * srcPixels[idx10 + 3] +
+                (1 - dx) * dy * srcPixels[idx01 + 3] +
+                dx * dy * srcPixels[idx11 + 3];
+
+        return [r, g, b, a];
+    }
+    else if (interpolation === 'bicubic') {
+        // Bicubic interpolation - highest quality, slower
+        var x0 = Math.floor(x);
+        var y0 = Math.floor(y);
+        var dx = x - x0;
+        var dy = y - y0;
+
+        var result = [0, 0, 0, 0];
+
+        // Cubic interpolation kernel
+        var cubic = function(t) {
+            var a = -0.5; // standard bicubic parameter
+            var absT = Math.abs(t);
+            if (absT <= 1) {
+                return (a + 2) * absT * absT * absT - (a + 3) * absT * absT + 1;
+            } else if (absT < 2) {
+                return a * absT * absT * absT - 5 * a * absT * absT + 8 * a * absT - 4 * a;
+            }
+            return 0;
+        };
+
+        // Sample 4x4 neighborhood
+        for (var c = 0; c < 4; c++) {
+            var sum = 0;
+            for (var m = -1; m <= 2; m++) {
+                var yWeight = cubic(dy - m);
+                var rowSum = 0;
+                for (var n = -1; n <= 2; n++) {
+                    var sx = Math.max(0, Math.min(srcWidth - 1, x0 + n));
+                    var sy = Math.max(0, Math.min(srcHeight - 1, y0 + m));
+                    var idx = (sy * srcWidth + sx) << 2;
+                    var xWeight = cubic(dx - n);
+                    rowSum += srcPixels[idx + c] * xWeight;
+                }
+                sum += rowSum * yWeight;
+            }
+            result[c] = Math.max(0, Math.min(255, sum));
+        }
+
+        return result;
+    }
+
+    // Default to nearest neighbor
+    var ix = Math.round(x);
+    var iy = Math.round(y);
+    var index = (iy * srcWidth + ix) << 2;
+    return [
+        srcPixels[index],
+        srcPixels[index + 1],
+        srcPixels[index + 2],
+        srcPixels[index + 3]
+    ];
 };
+
 ImageFilters.Scale = function (srcImageData, scaleX, scaleY, interpolation) {
+    if (scaleX <= 0 || scaleY <= 0) {
+        throw new Error('Scale factors must be positive');
+    }
 
+    var srcPixels = srcImageData.data;
+    var srcWidth = srcImageData.width;
+    var srcHeight = srcImageData.height;
+
+    var dstWidth = Math.round(srcWidth * scaleX);
+    var dstHeight = Math.round(srcHeight * scaleY);
+
+    var dstImageData = this.utils.createImageData(dstWidth, dstHeight);
+    var dstPixels = dstImageData.data;
+
+    interpolation = interpolation || 'bilinear';
+
+    for (var dy = 0; dy < dstHeight; dy++) {
+        for (var dx = 0; dx < dstWidth; dx++) {
+            // Map destination coordinates back to source
+            var sx = dx / scaleX;
+            var sy = dy / scaleY;
+
+            var pixel = this._samplePixel(srcPixels, srcWidth, srcHeight, sx, sy, interpolation);
+
+            var dstIndex = (dy * dstWidth + dx) << 2;
+            dstPixels[dstIndex] = pixel[0];
+            dstPixels[dstIndex + 1] = pixel[1];
+            dstPixels[dstIndex + 2] = pixel[2];
+            dstPixels[dstIndex + 3] = pixel[3];
+        }
+    }
+
+    return dstImageData;
 };
+
+ImageFilters.Translate = function (srcImageData, x, y, interpolation) {
+    var srcPixels = srcImageData.data;
+    var srcWidth = srcImageData.width;
+    var srcHeight = srcImageData.height;
+
+    var dstImageData = this.utils.createImageData(srcWidth, srcHeight);
+    var dstPixels = dstImageData.data;
+
+    interpolation = interpolation || 'bilinear';
+
+    for (var dy = 0; dy < srcHeight; dy++) {
+        for (var dx = 0; dx < srcWidth; dx++) {
+            // Map destination coordinates back to source
+            var sx = dx - x;
+            var sy = dy - y;
+
+            var dstIndex = (dy * srcWidth + dx) << 2;
+
+            // Check if source is within bounds
+            if (sx >= 0 && sx < srcWidth && sy >= 0 && sy < srcHeight) {
+                var pixel = this._samplePixel(srcPixels, srcWidth, srcHeight, sx, sy, interpolation);
+                dstPixels[dstIndex] = pixel[0];
+                dstPixels[dstIndex + 1] = pixel[1];
+                dstPixels[dstIndex + 2] = pixel[2];
+                dstPixels[dstIndex + 3] = pixel[3];
+            } else {
+                // Outside bounds - transparent
+                dstPixels[dstIndex] = 0;
+                dstPixels[dstIndex + 1] = 0;
+                dstPixels[dstIndex + 2] = 0;
+                dstPixels[dstIndex + 3] = 0;
+            }
+        }
+    }
+
+    return dstImageData;
+};
+
 ImageFilters.Rotate = function (srcImageData, originX, originY, angle, resize, interpolation) {
+    var srcPixels = srcImageData.data;
+    var srcWidth = srcImageData.width;
+    var srcHeight = srcImageData.height;
 
+    // Default origin to center if not specified
+    if (originX === undefined) originX = srcWidth / 2;
+    if (originY === undefined) originY = srcHeight / 2;
+
+    interpolation = interpolation || 'bilinear';
+
+    var cos = Math.cos(angle);
+    var sin = Math.sin(angle);
+
+    var dstWidth = srcWidth;
+    var dstHeight = srcHeight;
+
+    // Calculate bounding box if resize is requested
+    if (resize) {
+        var corners = [
+            [0, 0],
+            [srcWidth, 0],
+            [0, srcHeight],
+            [srcWidth, srcHeight]
+        ];
+
+        var minX = Infinity, maxX = -Infinity;
+        var minY = Infinity, maxY = -Infinity;
+
+        for (var i = 0; i < corners.length; i++) {
+            var cx = corners[i][0] - originX;
+            var cy = corners[i][1] - originY;
+            var rx = cx * cos - cy * sin + originX;
+            var ry = cx * sin + cy * cos + originY;
+            minX = Math.min(minX, rx);
+            maxX = Math.max(maxX, rx);
+            minY = Math.min(minY, ry);
+            maxY = Math.max(maxY, ry);
+        }
+
+        dstWidth = Math.ceil(maxX - minX);
+        dstHeight = Math.ceil(maxY - minY);
+
+        // Adjust origin for new canvas size
+        originX -= minX;
+        originY -= minY;
+    }
+
+    var dstImageData = this.utils.createImageData(dstWidth, dstHeight);
+    var dstPixels = dstImageData.data;
+
+    for (var dy = 0; dy < dstHeight; dy++) {
+        for (var dx = 0; dx < dstWidth; dx++) {
+            // Translate to origin
+            var tx = dx - originX;
+            var ty = dy - originY;
+
+            // Reverse rotate
+            var sx = tx * cos + ty * sin + (resize ? srcWidth / 2 : originX);
+            var sy = -tx * sin + ty * cos + (resize ? srcHeight / 2 : originY);
+
+            var dstIndex = (dy * dstWidth + dx) << 2;
+
+            // Check if source is within bounds
+            if (sx >= 0 && sx < srcWidth && sy >= 0 && sy < srcHeight) {
+                var pixel = this._samplePixel(srcPixels, srcWidth, srcHeight, sx, sy, interpolation);
+                dstPixels[dstIndex] = pixel[0];
+                dstPixels[dstIndex + 1] = pixel[1];
+                dstPixels[dstIndex + 2] = pixel[2];
+                dstPixels[dstIndex + 3] = pixel[3];
+            } else {
+                // Outside bounds - transparent
+                dstPixels[dstIndex] = 0;
+                dstPixels[dstIndex + 1] = 0;
+                dstPixels[dstIndex + 2] = 0;
+                dstPixels[dstIndex + 3] = 0;
+            }
+        }
+    }
+
+    return dstImageData;
 };
+
 ImageFilters.Affine = function (srcImageData, matrix, resize, interpolation) {
+    if (!matrix || matrix.length < 6) {
+        throw new Error('Affine matrix must be at least [a, b, c, d, e, f]');
+    }
 
+    var srcPixels = srcImageData.data;
+    var srcWidth = srcImageData.width;
+    var srcHeight = srcImageData.height;
+
+    // Extract matrix values: [a, b, c, d, e, f]
+    // x' = ax + by + c
+    // y' = dx + ey + f
+    var a = matrix[0], b = matrix[1], c = matrix[2];
+    var d = matrix[3], e = matrix[4], f = matrix[5];
+
+    // Calculate inverse matrix for reverse mapping
+    var det = a * e - b * d;
+    if (Math.abs(det) < 1e-10) {
+        throw new Error('Affine matrix is not invertible');
+    }
+
+    var invA = e / det;
+    var invB = -b / det;
+    var invD = -d / det;
+    var invE = a / det;
+    var invC = (b * f - e * c) / det;
+    var invF = (d * c - a * f) / det;
+
+    var dstWidth = srcWidth;
+    var dstHeight = srcHeight;
+
+    // Calculate bounding box if resize is requested
+    if (resize) {
+        var corners = [
+            [0, 0],
+            [srcWidth, 0],
+            [0, srcHeight],
+            [srcWidth, srcHeight]
+        ];
+
+        var minX = Infinity, maxX = -Infinity;
+        var minY = Infinity, maxY = -Infinity;
+
+        for (var i = 0; i < corners.length; i++) {
+            var x = corners[i][0];
+            var y = corners[i][1];
+            var tx = a * x + b * y + c;
+            var ty = d * x + e * y + f;
+            minX = Math.min(minX, tx);
+            maxX = Math.max(maxX, tx);
+            minY = Math.min(minY, ty);
+            maxY = Math.max(maxY, ty);
+        }
+
+        dstWidth = Math.ceil(maxX - minX);
+        dstHeight = Math.ceil(maxY - minY);
+
+        // Adjust inverse transform for offset
+        invC -= minX * invA + minY * invB;
+        invF -= minX * invD + minY * invE;
+    }
+
+    var dstImageData = this.utils.createImageData(dstWidth, dstHeight);
+    var dstPixels = dstImageData.data;
+
+    interpolation = interpolation || 'bilinear';
+
+    for (var dy = 0; dy < dstHeight; dy++) {
+        for (var dx = 0; dx < dstWidth; dx++) {
+            // Map destination coordinates back to source using inverse matrix
+            var sx = invA * dx + invB * dy + invC;
+            var sy = invD * dx + invE * dy + invF;
+
+            var dstIndex = (dy * dstWidth + dx) << 2;
+
+            // Check if source is within bounds
+            if (sx >= 0 && sx < srcWidth && sy >= 0 && sy < srcHeight) {
+                var pixel = this._samplePixel(srcPixels, srcWidth, srcHeight, sx, sy, interpolation);
+                dstPixels[dstIndex] = pixel[0];
+                dstPixels[dstIndex + 1] = pixel[1];
+                dstPixels[dstIndex + 2] = pixel[2];
+                dstPixels[dstIndex + 3] = pixel[3];
+            } else {
+                // Outside bounds - transparent
+                dstPixels[dstIndex] = 0;
+                dstPixels[dstIndex + 1] = 0;
+                dstPixels[dstIndex + 2] = 0;
+                dstPixels[dstIndex + 3] = 0;
+            }
+        }
+    }
+
+    return dstImageData;
 };
-ImageFilters.UnsharpMask = function (srcImageData, level) {
 
+ImageFilters.UnsharpMask = function (srcImageData, level) {
+    if (level === undefined) level = 0.5;
+    level = Math.max(0, Math.min(2, level)); // Clamp to reasonable range
+
+    var srcPixels = srcImageData.data;
+    var srcWidth = srcImageData.width;
+    var srcHeight = srcImageData.height;
+
+    // Apply Gaussian blur to create the mask
+    var blurRadius = 2; // Fixed blur radius for unsharp mask
+    var blurredImageData = this.GaussianBlur(srcImageData, 2);
+    var blurredPixels = blurredImageData.data;
+
+    var dstImageData = this.utils.createImageData(srcWidth, srcHeight);
+    var dstPixels = dstImageData.data;
+
+    // Unsharp mask: sharpened = original + level × (original - blurred)
+    for (var i = 0; i < srcPixels.length; i += 4) {
+        var r = srcPixels[i];
+        var g = srcPixels[i + 1];
+        var b = srcPixels[i + 2];
+        var a = srcPixels[i + 3];
+
+        var br = blurredPixels[i];
+        var bg = blurredPixels[i + 1];
+        var bb = blurredPixels[i + 2];
+
+        // Calculate difference (high-pass filter)
+        var dr = r - br;
+        var dg = g - bg;
+        var db = b - bb;
+
+        // Add scaled difference back to original
+        dstPixels[i] = Math.max(0, Math.min(255, r + dr * level));
+        dstPixels[i + 1] = Math.max(0, Math.min(255, g + dg * level));
+        dstPixels[i + 2] = Math.max(0, Math.min(255, b + db * level));
+        dstPixels[i + 3] = a; // Preserve alpha
+    }
+
+    return dstImageData;
 };
 
 ImageFilters.ConvolutionFilter = function (srcImageData, matrixX, matrixY, matrix, divisor, bias, preserveAlpha, clamp, color, alpha) {
@@ -1194,14 +1626,14 @@ ImageFilters.Desaturate = function (srcImageData) {
 };
 
 /**
- * TODO: use bilinear
+ * DisplacementMapFilter with bilinear interpolation support
+ * @param interpolation 'nearest' or 'bilinear' (default: 'bilinear')
  */
-ImageFilters.DisplacementMapFilter = function (srcImageData, mapImageData, mapX, mapY, componentX, componentY, scaleX, scaleY, mode) {
+ImageFilters.DisplacementMapFilter = function (srcImageData, mapImageData, mapX, mapY, componentX, componentY, scaleX, scaleY, mode, interpolation) {
     var srcPixels    = srcImageData.data,
         srcWidth     = srcImageData.width,
         srcHeight    = srcImageData.height,
         srcLength    = srcPixels.length,
-//        dstImageData = this.utils.createImageData(srcWidth, srcHeight),
         dstImageData = ImageFilters.Clone(srcImageData),
         dstPixels    = dstImageData.data;
 
@@ -1212,6 +1644,7 @@ ImageFilters.DisplacementMapFilter = function (srcImageData, mapImageData, mapX,
     scaleX || (scaleX = 0);
     scaleY || (scaleY = 0);
     mode || (mode = 2); // wrap
+    interpolation || (interpolation = 'bilinear');
 
     var mapWidth  = mapImageData.width,
         mapHeight = mapImageData.height,
@@ -1230,6 +1663,10 @@ ImageFilters.DisplacementMapFilter = function (srcImageData, mapImageData, mapX,
                 // out of the map bounds
                 // copy src to dst
                 srcIndex = dstIndex;
+                dstPixels[dstIndex]     = srcPixels[srcIndex];
+                dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
+                dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];
+                dstPixels[dstIndex + 3] = srcPixels[srcIndex + 3];
             } else {
                 // apply map
                 mapIndex = ((y - mapY) * mapWidth + (x - mapX)) << 2;
@@ -1238,22 +1675,31 @@ ImageFilters.DisplacementMapFilter = function (srcImageData, mapImageData, mapX,
                 cx = mapPixels[mapIndex + componentX];
                 tx = x + (((cx - 128) * scaleX) >> 8);
 
-                // tx = y + ((componentY(x, y) - 128) * scaleY) / 256
+                // ty = y + ((componentY(x, y) - 128) * scaleY) / 256
                 cy = mapPixels[mapIndex + componentY];
                 ty = y + (((cy - 128) * scaleY) >> 8);
 
-                srcIndex = ImageFilters.utils.getPixelIndex(tx + 0.5 | 0, ty + 0.5 | 0, srcWidth, srcHeight, mode);
-                if (srcIndex === null) {
-                    // if mode == ignore and (tx,ty) is out of src bounds
-                    // then copy (x,y) to dst
-                    srcIndex = dstIndex;
+                if (interpolation === 'bilinear') {
+                    // Use bilinear interpolation for smoother displacement
+                    var pixel = this._samplePixel(srcPixels, srcWidth, srcHeight, tx, ty, 'bilinear');
+                    dstPixels[dstIndex]     = pixel[0];
+                    dstPixels[dstIndex + 1] = pixel[1];
+                    dstPixels[dstIndex + 2] = pixel[2];
+                    dstPixels[dstIndex + 3] = pixel[3];
+                } else {
+                    // Nearest neighbor (original behavior)
+                    srcIndex = ImageFilters.utils.getPixelIndex(tx + 0.5 | 0, ty + 0.5 | 0, srcWidth, srcHeight, mode);
+                    if (srcIndex === null) {
+                        // if mode == ignore and (tx,ty) is out of src bounds
+                        // then copy (x,y) to dst
+                        srcIndex = dstIndex;
+                    }
+                    dstPixels[dstIndex]     = srcPixels[srcIndex];
+                    dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
+                    dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];
+                    dstPixels[dstIndex + 3] = srcPixels[srcIndex + 3];
                 }
             }
-
-            dstPixels[dstIndex]     = srcPixels[srcIndex];
-            dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
-            dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];
-            dstPixels[dstIndex + 3] = srcPixels[srcIndex + 3];
         }
     }
 
@@ -2008,10 +2454,16 @@ ImageFilters.Twril = function (srcImageData, centerX, centerY, radius, angle, ed
                     this.utils.copyBilinear(srcPixels, tx, ty, srcWidth, srcHeight, dstPixels, dstIndex, edge);
                 }
                 else {
-                    // nearest neighbor
-                    // round tx, ty
-                    // TODO edge actions!!
-                    srcIndex = ((ty + 0.5 | 0) * srcWidth + (tx + 0.5 | 0)) << 2;
+                    // nearest neighbor with edge handling
+                    // round tx, ty and clamp to bounds
+                    var ix = tx + 0.5 | 0;
+                    var iy = ty + 0.5 | 0;
+
+                    // Clamp to image bounds (edge action: clamp)
+                    ix = Math.max(0, Math.min(srcWidth - 1, ix));
+                    iy = Math.max(0, Math.min(srcHeight - 1, iy));
+
+                    srcIndex = (iy * srcWidth + ix) << 2;
                     dstPixels[dstIndex]     = srcPixels[srcIndex];
                     dstPixels[dstIndex + 1] = srcPixels[srcIndex + 1];
                     dstPixels[dstIndex + 2] = srcPixels[srcIndex + 2];

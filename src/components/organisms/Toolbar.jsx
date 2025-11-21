@@ -4,22 +4,22 @@ import Separator from '../atoms/Separator'
 import Icon from '../icons/Icon'
 import { TOOLBAR_LAYOUT, TOOL_SUBMENUS, FILTER_OPTIONS, FILTER_GROUPS } from '../../constants/editor'
 
-// Icon map using app-icons folder
+// Icon map using active icon folders
 const iconMap = {
-  select: { folder: 'app-icons', name: 'pointer-selector-tool-select' },
-  frame: { folder: 'app-icons', name: 'crop-tool-frame' },
-  zoom: { folder: 'app-icons', name: 'zoom-magnify-tool-zoom' },
-  flipX: { folder: 'app-icons', name: 'flip-x-tool-transform' },
-  flipY: { folder: 'app-icons', name: 'flip-y-tool-transform' },
-  rotateLeft: { folder: 'app-icons', name: 'turn-90-left-tool-rotate' },
-  rotateRight: { folder: 'app-icons', name: 'turn-90-right-tool-rotate' },
-  align: { folder: 'app-icons', name: 'auto-layout-tool-align' },
-  pen: { folder: 'app-icons', name: 'pen-tool-draw' },
-  draw: { folder: 'app-icons', name: 'pencil-tool-draw' },
-  shape: { folder: 'app-icons', name: 'rectangle-tool-shape' },
-  text: { folder: 'app-icons', name: 'font-03-tool-text' },
-  photo: { folder: 'app-icons', name: 'photo-02-tool-photo' },
-  boolean: { folder: 'app-icons', name: 'boolean-unite-tool-boolean' }
+  select: { folder: 'library/tools', name: 'pointer-selector-tool-select' },
+  frame: { folder: 'library/tools', name: 'crop-tool-frame' },
+  zoom: { folder: 'library/tools', name: 'zoom-magnify-tool-zoom' },
+  flipX: { folder: 'library/tools', name: 'flip-x-tool-transform' },
+  flipY: { folder: 'active/tools', name: 'flip-y' },
+  rotateLeft: { folder: 'active/tools', name: 'rotate-left' },
+  rotateRight: { folder: 'active/tools', name: 'rotate-right' },
+  align: { folder: 'active/tools', name: 'align-auto' },
+  pen: { folder: 'library/tools', name: 'pen-tool-draw' },
+  draw: { folder: 'library/tools', name: 'pencil-tool-draw' },
+  shape: { folder: 'library/tools', name: 'rectangle-tool-shape' },
+  text: { folder: 'library/tools', name: 'font-03-tool-text' },
+  photo: { folder: 'library/tools', name: 'photo-02-tool-photo' },
+  boolean: { folder: 'library/tools', name: 'boolean-unite-tool-boolean' }
 }
 
 const Toolbar = ({
@@ -80,7 +80,7 @@ const Toolbar = ({
           }`}
           onClick={() => setFilterMenuOpen((prev) => !prev)}
         >
-          Filters <Icon name="auto-layout-tool-align" folder="app-icons" size={16} />
+          Filters <Icon name="align-auto" folder="active/tools" size={16} />
         </button>
       </div>
 

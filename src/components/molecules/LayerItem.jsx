@@ -83,14 +83,14 @@ const LayerItem = ({
             </div>
           )}
           <div className="w-1 h-1 bg-fg-80 rounded-full" />
-          <div className="text-fg-80 text-xs font-semibold font-mono uppercase leading-3 tracking-tight">
+          <div className="text-fg-80 kol-mono-xs font-semibold uppercase leading-3 tracking-tight">
             CANVAS
           </div>
         </div>
         <div className="flex justify-start items-center gap-4">
           <Icon
-            name={layer.visible ? 'eye-ui-visibility' : 'eye-off-ui-visibility'}
-            folder="app-icons"
+            name={layer.visible ? 'eye-on' : 'eye-off'}
+            folder="active/status"
             size={12}
             className="text-auto cursor-pointer"
             onClick={(e) => {

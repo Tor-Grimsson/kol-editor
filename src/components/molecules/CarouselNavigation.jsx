@@ -35,7 +35,7 @@ const CarouselNavigation = ({
         aria-label="Previous slide"
         {...buttonProps}
       >
-        <Icon name="chevron-left" size={iconSize} className="text-auto" />
+        <Icon name="chevron-left" folder="active/ui" size={iconSize} className="text-auto" />
       </button>
       <button
         onClick={onNext}
@@ -43,7 +43,7 @@ const CarouselNavigation = ({
         aria-label="Next slide"
         {...buttonProps}
       >
-        <Icon name="chevron-right" size={iconSize} className="text-auto" />
+        <Icon name="chevron-right" folder="active/ui" size={iconSize} className="text-auto" />
       </button>
     </div>
   )

@@ -1,5 +1,9 @@
 Create a comprehensive session log following the llm-context-protocol format.
 
+## Before Starting:
+1. Read `LLM_RULES.md` to reinforce project rules
+2. Remember: Never add AI attribution in commit messages (no "Generated with Claude Code", no "Co-Authored-By: Claude")
+
 ## Instructions:
 
 Generate a detailed session log document that captures all work done in this session. The log should follow this structure:

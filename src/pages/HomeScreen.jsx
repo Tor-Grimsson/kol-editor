@@ -59,8 +59,8 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Kolkrabbi Editor</h1>
-            <p className="text-fg-64 mt-1">Your design files</p>
+            <h1 className="kol-helper-xl">Kolkrabbi Editor</h1>
+            <p className="text-fg-64 kol-helper-s mt-4">Your design files</p>
           </div>
           <Button variant="primary" onClick={onNewFile}>
             + New File
@@ -84,8 +84,8 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              <p className="text-lg">No files yet</p>
-              <p className="text-sm mt-2">Create your first design file to get started</p>
+              <p className="kol-text-lg">No files yet</p>
+              <p className="kol-text-sm mt-2">Create your first design file to get started</p>
             </div>
             <Button variant="primary" onClick={onNewFile}>
               Create New File
@@ -127,7 +127,7 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
                 {/* Info */}
                 <div className="p-3">
                   <div className="flex items-start justify-between mb-1">
-                    <h3 className="font-medium text-sm truncate flex-1">{file.name}</h3>
+                    <h3 className="kol-mono-sm font-medium truncate flex-1">{file.name}</h3>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -146,7 +146,7 @@ const HomeScreen = ({ onOpenFile, onNewFile }) => {
                       </svg>
                     </button>
                   </div>
-                  <p className="text-xs text-fg-48">{formatDate(file.updatedAt)}</p>
+                  <p className="kol-mono-xs text-fg-48">{formatDate(file.updatedAt)}</p>
                 </div>
               </div>
             ))}

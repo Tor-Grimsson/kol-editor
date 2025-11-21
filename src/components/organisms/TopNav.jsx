@@ -37,7 +37,7 @@ const TopNav = ({
           title="Canvas Size"
           onClick={onCanvasSizeClick}
         >
-          <Icon name="layout-tool-nav" folder="app-icons" size={20} />
+          <Icon name="layout" folder="active/navigation" size={20} />
         </Button>
         <Button
           square
@@ -45,7 +45,7 @@ const TopNav = ({
           title="Clear Document"
           onClick={onClearDocument}
         >
-          <Icon name="corner-diag-tool-nav" folder="app-icons" size={20} />
+          <Icon name="corner-diag" folder="active/navigation" size={20} />
         </Button>
         <ThemeToggle variant="icon" />
       </div>

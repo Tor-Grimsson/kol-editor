@@ -33,7 +33,7 @@ const ToolbarButton = ({
           onClick={onDropdownToggle}
           title={`${label} options`}
         >
-          <Icon name="caret-down-ui-dropdown" folder="app-icons" size={12} />
+          <Icon name="dropdown-caret" folder="active/content" size={12} />
         </button>
       )}
     </div>

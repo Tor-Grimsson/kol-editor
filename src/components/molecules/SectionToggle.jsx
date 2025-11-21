@@ -22,7 +22,7 @@ const SectionToggle = ({
          >
          <span className="kol-mono-text-label">{label}</span>
          {indicator ? (
-            <span className={`kol-mono-text-label text-xs ${indicatorClassName}`.trim()}>
+            <span className={`kol-mono-text-label ${indicatorClassName}`.trim()}>
                {isExpanded ? '-' : '+'}
             </span>
          ) : null}

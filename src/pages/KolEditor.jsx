@@ -11,7 +11,6 @@ import {
 } from 'react-konva'
 import Konva from 'konva'
 import polygonClipping from 'polygon-clipping'
-import { applyPixiFilterToNode } from '../utils/pixiFilters'
 
 import TopNav from '../components/organisms/TopNav'
 import Toolbar from '../components/organisms/Toolbar'
@@ -169,9 +168,11 @@ const KolEditor = () => {
         const pixiFiltersToApply = shapeFilters.filter(f => f.enabled && isPixiFilter(f.type))
 
         if (pixiFiltersToApply.length > 0) {
+          // Dynamically import pixi filters module
+          const { applyPixiFilterToImage, applyPixiFilterToNode } = await import('../utils/pixiFilters')
+
           // For image fill shapes, apply filter to the fillImageElement
           if (shape.fillType === 'image' && shape.fillImageElement) {
-            const { applyPixiFilterToImage } = await import('../utils/pixiFilters')
             for (const filter of pixiFiltersToApply) {
               const filteredCanvas = await applyPixiFilterToImage(shape.fillImageElement, filter.type, filter.params)
               if (filteredCanvas) {
@@ -343,11 +344,9 @@ const KolEditor = () => {
       // Cmd+A / Ctrl+A - Select all
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
         event.preventDefault()
-        console.log('Cmd+A pressed, selectedFrame:', selectedFrame?.id, 'selectedObject:', selectedObject?.id)
         if (selectedFrame) {
           // Select all objects in the current frame
           const frameChildren = selectedFrame.children.filter(id => shapes[id]?.visible !== false)
-          console.log('Selecting frame children:', frameChildren)
           if (frameChildren.length > 0) {
             setSelectedShapeIds(frameChildren)
             setSelectedShapeId(null)
@@ -355,7 +354,6 @@ const KolEditor = () => {
         } else {
           // Select all top-level frames and objects (not children inside frames)
           const allShapes = Object.values(shapes)
-          console.log('All shapes:', allShapes.map(s => ({ id: s.id, type: s.type, frameId: s.frameId, parentId: s.parentId, visible: s.visible })))
           const allObjects = allShapes
             .filter(s => {
               // Include only top-level items: frames and objects not in frames/boolean groups
@@ -367,7 +365,6 @@ const KolEditor = () => {
               return s.visible !== false || s.type === 'boolean'
             })
             .map(s => s.id)
-          console.log('Selecting all objects:', allObjects)
           if (allObjects.length > 0) {
             setSelectedShapeIds(allObjects)
             setSelectedShapeId(null)
@@ -1214,7 +1211,6 @@ const KolEditor = () => {
     }
 
     if (activeTool === 'frame') {
-      console.log('Frame tool active, starting drag at', pointer)
       // Start dragging to create a new frame
       setDragDraft({ kind: 'frame', start: pointer, current: pointer, shift: e.evt?.shiftKey })
       return
@@ -2507,12 +2503,10 @@ const KolEditor = () => {
         noiseMonochromatic: noise.monochromatic,
       }),
       onClick: (e) => {
-        console.log('Shape clicked:', shape.id, shape.type)
         e.cancelBubble = true
         handleCanvasSelection(frameId, shape.id, e)
       },
       onTap: (e) => {
-        console.log('Shape tapped:', shape.id, shape.type)
         e.cancelBubble = true
         handleCanvasSelection(frameId, shape.id, e)
       },
@@ -2882,7 +2876,6 @@ const KolEditor = () => {
   }
 
   const handleCanvasSelection = (frameId, shapeId, event) => {
-    console.log('handleCanvasSelection called:', { frameId, shapeId })
     // Shift+click for multi-select
     if (event?.evt?.shiftKey) {
       if (selectedShapeIds.length > 0) {
@@ -3103,10 +3096,8 @@ const KolEditor = () => {
               const wasExpanded = next.has(frameId)
               if (wasExpanded) {
                 next.delete(frameId)
-                console.log('Collapsing:', frameId, 'remaining:', Array.from(next))
               } else {
                 next.add(frameId)
-                console.log('Expanding:', frameId, 'all expanded:', Array.from(next))
               }
               return next
             })

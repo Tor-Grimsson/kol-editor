@@ -60,10 +60,10 @@ const ComponentShowcase = () => {
                 <div className="flex gap-3 items-center">
                   <Button variant="primary" square title="Add">+</Button>
                   <Button variant="default" square title="Delete">
-                    <Icon name="trash" size={16} />
+                    <Icon name="trash" folder="active/actions" size={16} />
                   </Button>
                   <Button variant="ghost" square title="Settings">
-                    <Icon name="caret-down" size={16} />
+                    <Icon name="caret-down" folder="active/ui" size={16} />
                   </Button>
                   <Button variant="primary" square>
                     <Icon name="star" size={16} />

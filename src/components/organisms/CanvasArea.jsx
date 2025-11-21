@@ -373,7 +373,7 @@ const CanvasArea = ({
 
           {/* Canvas Size Label */}
           <div
-            className="absolute bg-surface-on-primary text-auto text-[10px] px-3 py-1 rounded-full"
+            className="absolute bg-surface-on-primary text-auto kol-helper-uc-xxs px-3 py-1 rounded-full"
             style={{
               top: (artboardPosition.y + canvasSize.height) * zoomLevel + stagePosition.y + 10,
               left: (artboardPosition.x + canvasSize.width / 2) * zoomLevel + stagePosition.x - 30,

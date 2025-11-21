@@ -26,7 +26,7 @@ const ToggleSwitch = ({
       <span className="toggle-switch-label">
         {label}
         {hint ? (
-          <span className="ml-2 opacity-60 normal-case tracking-normal text-[10px]">
+          <span className="ml-2 opacity-60 kol-helper-xxs">
             {hint}
           </span>
         ) : null}

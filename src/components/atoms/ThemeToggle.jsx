@@ -95,7 +95,7 @@ const ThemeToggle = ({ variant = 'default', className = '', previewOnly = false 
   }
 
   const containerClasses = variant === 'compact'
-    ? `flex w-full items-center justify-between rounded-full border px-4 py-2 text-sm transition-colors duration-300 bg-transparent min-h-[44px] ${className}`
+    ? `flex w-full items-center justify-between rounded-full border px-4 py-2 kol-mono-sm transition-colors duration-300 bg-transparent min-h-[44px] ${className}`
     : `group flex w-fit items-center gap-3 rounded-full border p-1 pl-4 transition-colors duration-300 bg-transparent ${className}`
 
   const labelClass = variant === 'compact'

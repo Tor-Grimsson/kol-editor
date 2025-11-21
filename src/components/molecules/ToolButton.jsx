@@ -45,7 +45,7 @@ const ToolButton = ({
                 onToggleDropdown()
               }}
             >
-              <Icon name="caret-down-ui-dropdown" folder="app-icons" size={8} />
+              <Icon name="dropdown-caret" folder="active/content" size={8} />
             </div>
           )}
         </div>
