@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Stage, Layer as KonvaLayer, Rect, Circle, RegularPolygon, Star, Line, Text as KonvaText, Transformer } from 'react-konva'
+import { Stage, Layer as KonvaLayer, Group, Rect, Circle, RegularPolygon, Star, Line, Text as KonvaText, Transformer } from 'react-konva'
 import CanvasHandle from '../molecules/CanvasHandle'
 import DraftPreview from '../canvas/DraftPreview'
 import { RULER_STEP } from '../../constants/editor'
@@ -40,7 +40,9 @@ const CanvasArea = ({
   onNodeDrag,
   onNodeDragEnd,
   renderObject,
-  renderDraftGrid
+  renderDraftGrid,
+  // Gradient handles
+  onGradientHandleDrag,
 }) => {
   const horizontalMarks = useMemo(() => {
     const marks = []
@@ -114,24 +116,107 @@ const CanvasArea = ({
           >
             <KonvaLayer>
               {/* Render frame backgrounds and shapes inside frames */}
-              {layers.flatMap((layer) => {
+              {layers.map((layer) => {
+                // Process layer effects
+                const effects = layer.effects || []
+                const dropShadow = effects.find(e => e.type === 'drop-shadow' && e.enabled)
+                const blur = effects.find(e => e.type === 'blur' && e.enabled)
+                const backgroundBlur = effects.find(e => e.type === 'background-blur' && e.enabled)
+                const noise = effects.find(e => e.type === 'noise' && e.enabled)
+
+                // Build filters array for frame
+                const frameFilters = []
+                if (blur || backgroundBlur) frameFilters.push(window.Konva.Filters.Blur)
+                if (noise) {
+                  frameFilters.push(window.Konva.Filters.Noise)
+                  // Add grayscale filter for monochromatic noise
+                  if (noise.monochromatic !== false) {
+                    frameFilters.push(window.Konva.Filters.Grayscale)
+                  }
+                }
+
                 // Only render background for actual frames, not top-level objects
+                // Support legacy 'background' property (rgba string) and new fillColor/fillOpacity
+                let fillColor = layer.fillColor ?? '#ffffff'
+                let fillOpacity = layer.fillOpacity ?? 0.02
+
+                // Migrate legacy background property to fillColor/fillOpacity
+                if (layer.background && !layer.fillColor) {
+                  const match = layer.background.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+                  if (match) {
+                    const [, r, g, b, a] = match
+                    fillColor = `#${parseInt(r).toString(16).padStart(2, '0')}${parseInt(g).toString(16).padStart(2, '0')}${parseInt(b).toString(16).padStart(2, '0')}`
+                    fillOpacity = a ? parseFloat(a) : 1
+                  } else if (layer.background.startsWith('#')) {
+                    fillColor = layer.background
+                    fillOpacity = 1
+                  }
+                }
                 const frameBackground = layer.type === 'frame' ? (
                   <Rect
-                    key={`frame-bg-${layer.id}`}
+                    key={`frame-bg-${layer.id}-${fillOpacity}`}
+                    ref={(node) => {
+                      if (node && nodeRefs) {
+                        nodeRefs.current?.set(layer.id, node)
+                        // Cache the node if filters are applied (required for filters to work)
+                        if (frameFilters.length > 0) {
+                          node.clearCache()
+                          node.cache()
+                          node.getLayer()?.batchDraw()
+                        }
+                      } else if (nodeRefs) {
+                        nodeRefs.current?.delete(layer.id)
+                      }
+                    }}
                     x={layer.x}
                     y={layer.y}
                     width={layer.width}
                     height={layer.height}
-                    fill={layer.background ?? 'rgba(255, 255, 255, 0.02)'}
+                    fill={fillColor}
+                    opacity={fillOpacity}
                     listening={activeTool === 'select'}
                     stroke="#3f3f46"
                     strokeWidth={0.5}
+                    perfectDrawEnabled={false}
                     onPointerDown={(e) => onArtboardBackgroundClick(e, layer.id)}
+                    {...(dropShadow && {
+                      shadowColor: dropShadow.color,
+                      shadowBlur: dropShadow.blur,
+                      shadowOffsetX: dropShadow.offsetX,
+                      shadowOffsetY: dropShadow.offsetY,
+                      shadowOpacity: dropShadow.opacity ?? 1,
+                      shadowEnabled: true,
+                    })}
+                    {...(frameFilters.length > 0 && {
+                      filters: frameFilters,
+                    })}
+                    {...((blur || backgroundBlur) && {
+                      blurRadius: blur?.radius || backgroundBlur?.radius,
+                    })}
+                    {...(noise && {
+                      noise: noise.amount,
+                    })}
+                    {...(noise && noise.monochromatic !== undefined && {
+                      noiseMonochromatic: noise.monochromatic,
+                    })}
                   />
                 ) : null
                 const shapes = layer.visible ? layer.objects.filter((obj) => obj.visible).map((obj) => renderObject(layer.id, obj)) : []
-                return [frameBackground, ...shapes].filter(Boolean)
+                const frameElements = [frameBackground, ...shapes].filter(Boolean)
+
+                // Wrap frame and its contents in a Group with blending mode
+                if (layer.type === 'frame' && layer.blendMode && layer.blendMode !== 'source-over') {
+                  return (
+                    <Group
+                      key={`frame-group-${layer.id}`}
+                      globalCompositeOperation={layer.blendMode}
+                    >
+                      {frameElements}
+                    </Group>
+                  )
+                }
+
+                return frameElements
               })}
 
               {/* Render shapes on infinite canvas (no frame) */}
@@ -267,7 +352,7 @@ const CanvasArea = ({
                 return <>{nodeElements}</>
               })()}
 
-              <Transformer ref={transformerRef} rotateEnabled />
+              <Transformer ref={transformerRef} rotateEnabled keepRatio={false} />
             </KonvaLayer>
           </Stage>
 
@@ -314,6 +399,92 @@ const CanvasArea = ({
               ))}
             </>
           )}
+
+          {/* Gradient Direction Handles - Show when shape with gradient fill is selected */}
+          {selectedObject && selectedObject.fillType === 'gradient' && (() => {
+            // Calculate screen positions for gradient handles
+            const startX = selectedObject.x + (selectedObject.gradientStart?.x ?? 0) * selectedObject.width
+            const startY = selectedObject.y + (selectedObject.gradientStart?.y ?? 0.5) * selectedObject.height
+            const endX = selectedObject.x + (selectedObject.gradientEnd?.x ?? 1) * selectedObject.width
+            const endY = selectedObject.y + (selectedObject.gradientEnd?.y ?? 0.5) * selectedObject.height
+
+            const startScreen = worldToScreen(startX, startY)
+            const endScreen = worldToScreen(endX, endY)
+
+            const handleSize = 14
+            const startColor = selectedObject.gradientStartColor || selectedObject.color || '#000000'
+            const endColor = selectedObject.gradientEndColor || '#ffffff'
+
+            return (
+              <>
+                {/* Gradient line */}
+                <svg
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: 0,
+                    top: 0,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'visible',
+                  }}
+                >
+                  <line
+                    x1={startScreen.x}
+                    y1={startScreen.y}
+                    x2={endScreen.x}
+                    y2={endScreen.y}
+                    stroke="white"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                  />
+                  <line
+                    x1={startScreen.x}
+                    y1={startScreen.y}
+                    x2={endScreen.x}
+                    y2={endScreen.y}
+                    stroke="#3b82f6"
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                    strokeDashoffset={4}
+                  />
+                </svg>
+
+                {/* Start handle */}
+                <div
+                  className="absolute cursor-move border-2 border-white rounded-full"
+                  style={{
+                    width: handleSize,
+                    height: handleSize,
+                    left: startScreen.x - handleSize / 2,
+                    top: startScreen.y - handleSize / 2,
+                    backgroundColor: startColor,
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
+                    onGradientHandleDrag?.('start', e)
+                  }}
+                  title="Gradient start"
+                />
+
+                {/* End handle */}
+                <div
+                  className="absolute cursor-move border-2 border-white rounded-full"
+                  style={{
+                    width: handleSize,
+                    height: handleSize,
+                    left: endScreen.x - handleSize / 2,
+                    top: endScreen.y - handleSize / 2,
+                    backgroundColor: endColor,
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
+                    onGradientHandleDrag?.('end', e)
+                  }}
+                  title="Gradient end"
+                />
+              </>
+            )
+          })()}
         </div>
       </div>
     </div>

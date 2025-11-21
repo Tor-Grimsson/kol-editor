@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import {
   Circle,
   Line,
@@ -8,7 +9,9 @@ import {
   Text as KonvaText,
   Shape,
 } from 'react-konva'
+import Konva from 'konva'
 import polygonClipping from 'polygon-clipping'
+import { applyPixiFilterToNode } from '../utils/pixiFilters'
 
 import TopNav from '../components/organisms/TopNav'
 import Toolbar from '../components/organisms/Toolbar'
@@ -18,6 +21,7 @@ import CanvasArea from '../components/organisms/CanvasArea'
 import { TOOL_SUBMENUS, DEFAULT_CANVAS, BASE_COLORS } from '../constants/editor'
 import { hexToHsb, hsbToHex } from '../utils/colors'
 import { clamp } from '../utils/geometry'
+import { saveFile, loadFile } from '../utils/fileStorage'
 
 const dropdownDefaults = { toolId: null, left: 0 }
 
@@ -32,18 +36,25 @@ const createFrameShape = (index, overrides = {}) => ({
   width: overrides.width ?? DEFAULT_CANVAS.width,
   height: overrides.height ?? DEFAULT_CANVAS.height,
   rotation: 0,
-  background: 'rgba(255, 255, 255, 0.02)', // Very subtle fill so frames are clickable
+  fillColor: '#ffffff', // RGB color
+  fillOpacity: 0.02, // Separate opacity (0-1)
   visible: true,
   children: [],
   frameId: null,
   parentId: null,
   order: overrides.order ?? index,
+  blendMode: 'source-over', // Default blend mode
+  effects: [], // Layer effects: drop-shadow, inner-shadow, blur, background-blur, noise
   ...overrides,
 })
 
 const KolEditor = () => {
+  const { fileId } = useParams()
+  const navigate = useNavigate()
+
   // Flat shapes map - ALL shapes (including frames) in one place
   const [shapes, setShapes] = useState({})
+  const [fileName, setFileName] = useState('Untitled')
   const [selectedShapeId, setSelectedShapeId] = useState(null)
   const [selectedShapeIds, setSelectedShapeIds] = useState([]) // Multi-select support
   const [expandedShapes, setExpandedShapes] = useState(() => new Set())
@@ -57,7 +68,6 @@ const KolEditor = () => {
   const [dragDraft, setDragDraft] = useState(null)
   const [isAltPressed, setIsAltPressed] = useState(false)
   const [filterMenuOpen, setFilterMenuOpen] = useState(false)
-  const [inspectorFilter, setInspectorFilter] = useState(null)
   const [layoutSettings, setLayoutSettings] = useState({ columns: 1, rows: 1, gutter: 0, showGrid: false })
   const [toolSelections, setToolSelections] = useState({})
   const [marqueeSelection, setMarqueeSelection] = useState(null) // { start: {x, y}, end: {x, y}, clickedFrameId?: string }
@@ -65,6 +75,8 @@ const KolEditor = () => {
   const [penPreviewPoint, setPenPreviewPoint] = useState(null) // Current mouse position for preview line
   const [nodeEditMode, setNodeEditMode] = useState(false) // Whether node editing mode is active
   const [editingNodeIndex, setEditingNodeIndex] = useState(null) // Index of node being dragged
+  const [pixiFilteredImages, setPixiFilteredImages] = useState({}) // Cache for Pixi-filtered images {shapeId: imageElement}
+  const [, setGradientDragging] = useState(null) // 'start' | 'end' | null - used for cursor state
 
   const stageRef = useRef(null)
   const transformerRef = useRef(null)
@@ -75,6 +87,37 @@ const KolEditor = () => {
   const cloneDragRef = useRef(null)
   const undoStackRef = useRef([])
   const redoStackRef = useRef([])
+
+  // Load file on mount
+  useEffect(() => {
+    const fileData = loadFile(fileId)
+    if (fileData) {
+      setShapes(fileData.shapes || {})
+      setFileName(fileData.name || 'Untitled')
+      setCanvasBackground(fileData.canvasBackground || '#18181b')
+    }
+  }, [fileId])
+
+  // Auto-save every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      handleSave()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [shapes, canvasBackground, fileName])
+
+  const handleSave = () => {
+    saveFile(fileId, {
+      name: fileName,
+      shapes,
+      canvasBackground,
+    })
+  }
+
+  const handleGoHome = () => {
+    handleSave() // Save before leaving
+    navigate('/')
+  }
 
   // Derive current selections from shapes map
   const selectedShape = useMemo(() => shapes[selectedShapeId] ?? null, [shapes, selectedShapeId])
@@ -101,6 +144,79 @@ const KolEditor = () => {
     if (!selectedFrame) return { x: 0, y: 0 }
     return { x: selectedFrame.x, y: selectedFrame.y }
   }, [selectedFrame])
+
+  // Helper to check if a filter is a Pixi filter
+  const isPixiFilter = (filterType) => {
+    const pixiFilters = [
+      'filter-adjustment', 'filter-hsl-adjustment', 'filter-color-gradient', 'filter-color-map',
+      'filter-color-overlay', 'filter-color-replace', 'filter-multi-color-replace',
+      'filter-radial-blur', 'filter-zoom-blur', 'filter-motion-blur', 'filter-kawase-blur',
+      'filter-tilt-shift', 'filter-backdrop-blur', 'filter-displacement', 'filter-twist',
+      'filter-bulge-pinch', 'filter-shockwave', 'filter-ascii', 'filter-cross-hatch',
+      'filter-dot', 'filter-crt', 'filter-old-film', 'filter-glitch', 'filter-rgb-split',
+      'filter-simplex-noise', 'filter-bloom', 'filter-advanced-bloom', 'filter-glow',
+      'filter-godray', 'filter-simple-lightmap', 'filter-bevel', 'filter-drop-shadow',
+      'filter-outline', 'filter-reflection', 'filter-convolution'
+    ]
+    return pixiFilters.includes(filterType)
+  }
+
+  // Apply Pixi filters to shapes with Pixi filters (including image fills)
+  useEffect(() => {
+    const applyPixiFilters = async () => {
+      for (const [shapeId, shape] of Object.entries(shapes)) {
+        const shapeFilters = shape.filters || []
+        const pixiFiltersToApply = shapeFilters.filter(f => f.enabled && isPixiFilter(f.type))
+
+        if (pixiFiltersToApply.length > 0) {
+          // For image fill shapes, apply filter to the fillImageElement
+          if (shape.fillType === 'image' && shape.fillImageElement) {
+            const { applyPixiFilterToImage } = await import('../utils/pixiFilters')
+            for (const filter of pixiFiltersToApply) {
+              const filteredCanvas = await applyPixiFilterToImage(shape.fillImageElement, filter.type, filter.params)
+              if (filteredCanvas) {
+                const img = new window.Image()
+                img.src = filteredCanvas.toDataURL()
+                img.onload = () => {
+                  setPixiFilteredImages(prev => ({
+                    ...prev,
+                    [shapeId]: img
+                  }))
+                }
+              }
+            }
+          } else {
+            // For other shapes (photo type), use node-based filtering
+            const node = nodeRefs.current.get(shapeId)
+            if (node) {
+              for (const filter of pixiFiltersToApply) {
+                const filteredCanvas = await applyPixiFilterToNode(node, filter.type, filter.params)
+                if (filteredCanvas) {
+                  const img = new window.Image()
+                  img.src = filteredCanvas.toDataURL()
+                  img.onload = () => {
+                    setPixiFilteredImages(prev => ({
+                      ...prev,
+                      [shapeId]: img
+                    }))
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // Clear filtered image if no Pixi filters
+          setPixiFilteredImages(prev => {
+            const updated = { ...prev }
+            delete updated[shapeId]
+            return updated
+          })
+        }
+      }
+    }
+
+    applyPixiFilters()
+  }, [shapes])
 
   // Get all frames (for sidebar) with populated children
   // Get all top-level items (frames and objects) sorted by order
@@ -227,20 +343,33 @@ const KolEditor = () => {
       // Cmd+A / Ctrl+A - Select all
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
         event.preventDefault()
+        console.log('Cmd+A pressed, selectedFrame:', selectedFrame?.id, 'selectedObject:', selectedObject?.id)
         if (selectedFrame) {
           // Select all objects in the current frame
           const frameChildren = selectedFrame.children.filter(id => shapes[id]?.visible !== false)
+          console.log('Selecting frame children:', frameChildren)
           if (frameChildren.length > 0) {
             setSelectedShapeIds(frameChildren)
             setSelectedShapeId(null)
           }
         } else {
-          // Select all shapes on infinite canvas
-          const infiniteShapes = Object.values(shapes)
-            .filter(s => s.type !== 'frame' && !s.frameId && s.visible !== false)
+          // Select all top-level frames and objects (not children inside frames)
+          const allShapes = Object.values(shapes)
+          console.log('All shapes:', allShapes.map(s => ({ id: s.id, type: s.type, frameId: s.frameId, parentId: s.parentId, visible: s.visible })))
+          const allObjects = allShapes
+            .filter(s => {
+              // Include only top-level items: frames and objects not in frames/boolean groups
+              if (s.type === 'frame') return true
+              // Exclude shapes inside frames
+              if (s.frameId) return false
+              // Exclude boolean group children
+              if (s.parentId && s.parentId !== s.frameId) return false
+              return s.visible !== false || s.type === 'boolean'
+            })
             .map(s => s.id)
-          if (infiniteShapes.length > 0) {
-            setSelectedShapeIds(infiniteShapes)
+          console.log('Selecting all objects:', allObjects)
+          if (allObjects.length > 0) {
+            setSelectedShapeIds(allObjects)
             setSelectedShapeId(null)
           }
         }
@@ -455,10 +584,24 @@ const KolEditor = () => {
       visible: true,
       opacity: 1,
       color,
+      blendMode: 'source-over',
+      effects: [], // Layer effects: drop-shadow, inner-shadow, blur, background-blur, noise
       children: [],
       frameId: overrides.frameId ?? null,
       parentId: overrides.parentId ?? null,
       order: overrides.order ?? nextShapeIdRef.current,
+      // Fill properties
+      fillType: overrides.fillType ?? 'solid', // 'solid', 'gradient', 'image'
+      // Gradient fill
+      gradientStartColor: overrides.gradientStartColor ?? color,
+      gradientStartOpacity: overrides.gradientStartOpacity ?? 1,
+      gradientEndColor: overrides.gradientEndColor ?? '#ffffff',
+      gradientEndOpacity: overrides.gradientEndOpacity ?? 1,
+      gradientStart: overrides.gradientStart ?? { x: 0, y: 0.5 }, // Normalized 0-1
+      gradientEnd: overrides.gradientEnd ?? { x: 1, y: 0.5 },
+      // Image fill
+      fillImageUrl: overrides.fillImageUrl ?? null,
+      fillImageElement: overrides.fillImageElement ?? null,
       // Text-specific
       text: overrides.text ?? 'JetBrains Mono',
       fontFamily: overrides.fontFamily ?? 'JetBrains Mono, monospace',
@@ -732,6 +875,9 @@ const KolEditor = () => {
 
     const targetFrame = shapes[targetFrameId]
     if (!targetFrame || targetFrame.type !== 'frame') return
+
+    // Don't do anything if already in this frame
+    if (object.frameId === targetFrameId) return
 
     // Remove from old frame if it had one
     const oldFrameId = object.frameId
@@ -1074,6 +1220,13 @@ const KolEditor = () => {
       return
     }
 
+    if (activeTool === 'photo') {
+      // Start dragging to create a photo frame
+      const frameId = selectedFrame?.id ?? null
+      setDragDraft({ frameId, kind: 'photo', start: pointer, current: pointer, shift: e.evt?.shiftKey })
+      return
+    }
+
     if (activeTool === 'pen') {
       // Handle pen tool clicks
       handlePenClick(pointer, e.evt)
@@ -1107,14 +1260,13 @@ const KolEditor = () => {
 
     e.cancelBubble = true
 
-    // Start marquee selection (same as stage click)
-    const stage = e.target.getStage()
-    const pointer = stage.getPointerPosition()
-    setMarqueeSelection({ start: pointer, end: pointer, clickedFrameId: frameId })
+    // Select the frame and deselect any objects
+    setSelectedShapeId(frameId)
+    setSelectedShapeIds([])
   }
 
   const handleStagePointerMove = (e) => {
-    if (dragDraft?.kind === 'shape' || dragDraft?.kind === 'frame') {
+    if (dragDraft?.kind === 'shape' || dragDraft?.kind === 'frame' || dragDraft?.kind === 'photo') {
       const pointer = e.target.getStage().getPointerPosition()
       setDragDraft((prev) => (prev ? { ...prev, current: pointer, shift: e.evt?.shiftKey } : prev))
     }
@@ -1161,6 +1313,7 @@ const KolEditor = () => {
   const handleStagePointerUp = () => {
     if (dragDraft?.kind === 'shape') finalizeShapeDraft()
     if (dragDraft?.kind === 'frame') finalizeFrameDraft()
+    if (dragDraft?.kind === 'photo') finalizePhotoDraft()
     if (marqueeSelection) finalizeMarqueeSelection()
   }
 
@@ -1286,21 +1439,69 @@ const KolEditor = () => {
     setActiveTool('select') // Return to select tool after creating frame
   }
 
+  const finalizePhotoDraft = () => {
+    if (!dragDraft) return
+    const { start, current, shift, frameId } = dragDraft
+    const width = Math.abs(current.x - start.x)
+    const height = Math.abs(current.y - start.y)
+    if (width < 10 && height < 10) {
+      setDragDraft(null)
+      return
+    }
+    let finalWidth = width
+    let finalHeight = height
+    if (shift) {
+      const size = Math.max(width, height)
+      finalWidth = size
+      finalHeight = size
+    }
+
+    const position = {
+      x: Math.min(start.x, current.x),
+      y: Math.min(start.y, current.y),
+      width: finalWidth,
+      height: finalHeight,
+      rotation: 0,
+    }
+
+    // Create a photo shape with no image yet
+    const photoShape = {
+      id: `photo-${Date.now()}`,
+      type: 'photo',
+      ...position,
+      fill: '#fafafa', // Very light gray background
+      visible: true,
+      frameId,
+      imageUrl: null, // No image yet
+    }
+
+    addShapeToFrame(frameId, photoShape)
+    setDragDraft(null)
+    setActiveTool('select')
+    setSelectedShapeId(photoShape.id)
+  }
+
   const normalizePosition = (type, width, height, node) => {
-    if (['rect', 'text'].includes(type)) return { x: node.x(), y: node.y() }
+    if (['rect', 'text', 'photo'].includes(type)) return { x: node.x(), y: node.y() }
     return { x: node.x() - width / 2, y: node.y() - height / 2 }
   }
 
   const handleObjectDragStart = (frameId, shape, event) => {
     if (event.evt?.altKey) {
       event.target.stopDrag()
+
+      // Deep clone the shape to avoid sharing references
       const clone = {
         ...shape,
         id: `shape-${nextShapeIdRef.current++}`,
         name: `${shape.name} copy`,
         frameId,
-        parentId: frameId
+        parentId: frameId,
+        // Deep clone arrays and objects
+        children: shape.children ? [...shape.children] : [],
+        meta: shape.meta ? JSON.parse(JSON.stringify(shape.meta)) : undefined,
       }
+
       const frame = shapes[frameId]
       pushUndoState({
         ...shapes,
@@ -1383,10 +1584,64 @@ const KolEditor = () => {
     })
   }
 
+  // Gradient handle drag handler
+  const handleGradientHandleDrag = (handle, mouseDownEvent) => {
+    if (!selectedObject || selectedObject.fillType !== 'gradient') return
+
+    const shape = selectedObject
+    setGradientDragging(handle)
+
+    const handleMouseMove = (e) => {
+      // Get mouse position relative to canvas container
+      const canvasContainer = document.querySelector('.flex-1.flex.overflow-hidden')
+      if (!canvasContainer) return
+
+      const rect = canvasContainer.getBoundingClientRect()
+      const mouseX = e.clientX - rect.left
+      const mouseY = e.clientY - rect.top
+
+      // Convert screen coords to world coords
+      const worldX = (mouseX - stagePosition.x) / zoomLevel
+      const worldY = (mouseY - stagePosition.y) / zoomLevel
+
+      // Convert world coords to normalized 0-1 coords relative to shape
+      const normalizedX = (worldX - shape.x) / shape.width
+      const normalizedY = (worldY - shape.y) / shape.height
+
+      // Clamp to reasonable range (allow some overflow for effect)
+      const clampedX = Math.max(-0.5, Math.min(1.5, normalizedX))
+      const clampedY = Math.max(-0.5, Math.min(1.5, normalizedY))
+
+      if (handle === 'start') {
+        updateShape(shape.id, { gradientStart: { x: clampedX, y: clampedY } })
+      } else {
+        updateShape(shape.id, { gradientEnd: { x: clampedX, y: clampedY } })
+      }
+    }
+
+    const handleMouseUp = () => {
+      setGradientDragging(null)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
+
   const handlePositionInput = (prop, value) => {
     if (!selectedObject) return
-    const numeric = prop === 'rotation' ? Number(value) : Math.max(0, Number(value))
-    updateShapePosition(selectedObject.id, { [prop]: numeric })
+    // Non-numeric props that should be passed as-is
+    const nonNumericProps = ['blendMode', 'effects', 'fillType', 'gradientStartColor', 'gradientEndColor', 'gradientStart', 'gradientEnd', 'fillImageUrl', 'fillImageElement']
+    if (nonNumericProps.includes(prop)) {
+      updateShape(selectedObject.id, { [prop]: value })
+    } else if (prop === 'gradientStartOpacity' || prop === 'gradientEndOpacity') {
+      // Opacity props are already 0-1, just ensure they're numbers
+      updateShape(selectedObject.id, { [prop]: Number(value) })
+    } else {
+      const numeric = prop === 'rotation' ? Number(value) : Math.max(0, Number(value))
+      updateShapePosition(selectedObject.id, { [prop]: numeric })
+    }
   }
 
   const handleColorChange = (hex) => {
@@ -1536,17 +1791,161 @@ const KolEditor = () => {
     }
   }
 
-  const applyFilter = (optionId) => {
+  const addFilter = (filterId) => {
     if (!selectedObject) return
-    const hsb = hexToHsb(selectedObject.color)
-    if (optionId === 'filter-grayscale') hsb.s = 0
-    if (optionId === 'filter-brightness') hsb.b = clamp(hsb.b + 10, 0, 100)
-    if (optionId === 'filter-contrast') hsb.s = clamp(hsb.s + 10, 0, 100)
-    if (optionId === 'filter-hue') hsb.h = (hsb.h + 25) % 360
-    if (optionId === 'filter-dim') hsb.b = clamp(hsb.b - 10, 0, 100)
-    const hex = hsbToHex(hsb.h, hsb.s, hsb.b)
-    updateShape(selectedObject.id, { color: hex })
-    setInspectorFilter({ type: optionId, amount: 50 })
+
+    const currentFilters = selectedObject.filters || []
+    const newFilter = {
+      id: `${filterId}-${Date.now()}`,
+      type: filterId,
+      enabled: true,
+      params: getDefaultFilterParams(filterId)
+    }
+
+    const updatedFilters = [...currentFilters, newFilter]
+    updateShape(selectedObject.id, { filters: updatedFilters })
+  }
+
+  const getDefaultFilterParams = (filterId) => {
+    switch (filterId) {
+      case 'filter-hsl':
+      case 'filter-hsv':
+        return { hue: 0, saturation: 0, value: 0 }
+      case 'filter-brightness':
+        return { brightness: 0 }
+      case 'filter-contrast':
+        return { contrast: 0 }
+      case 'filter-rgb':
+        return { red: 0, green: 0, blue: 0 }
+      case 'filter-blur':
+        return { blurRadius: 5 }
+      case 'filter-pixelate':
+        return { pixelSize: 8 }
+      case 'filter-posterize':
+        return { levels: 0.5 }
+      case 'filter-emboss':
+        return { embossStrength: 0.5, embossDirection: 'top-left' }
+      case 'filter-noise':
+        return { noise: 0.2 }
+      case 'filter-threshold':
+        return { threshold: 0.5 }
+      // Pixi filters - Blur
+      case 'filter-radial-blur':
+        return { angle: 0, centerX: 0.5, centerY: 0.5, kernelSize: 5, radius: -1 }
+      case 'filter-zoom-blur':
+        return { strength: 0.1, centerX: 0.5, centerY: 0.5, innerRadius: 0, radius: -1 }
+      case 'filter-motion-blur':
+        return { velocityX: 0, velocityY: 5, kernelSize: 5, offset: 0 }
+      // Pixi filters - Displacement
+      case 'filter-displacement':
+        return { scaleX: 20, scaleY: 20, frequency: 1, octaves: 3, persistence: 0.5 }
+      // Pixi filters - Distortion
+      case 'filter-twist':
+        return { radius: 200, angle: 4, centerX: 0.5, centerY: 0.5 }
+      case 'filter-bulge-pinch':
+        return { radius: 100, strength: 1, centerX: 0.5, centerY: 0.5 }
+      case 'filter-shockwave':
+        return { amplitude: 30, wavelength: 160, brightness: 1, radius: -1, centerX: 0.5, centerY: 0.5 }
+      // Pixi - Color Adjustments
+      case 'filter-adjustment':
+        return { gamma: 1, saturation: 1, contrast: 1, brightness: 1, red: 1, green: 1, blue: 1, alpha: 1 }
+      case 'filter-hsl-adjustment':
+        return { hue: 0, saturation: 0, lightness: 0, colorize: false, alpha: 1 }
+      case 'filter-color-overlay':
+        return { color: 0x000000, alpha: 0.5 }
+      case 'filter-color-replace':
+        return { originalColor: 0xff0000, newColor: 0x00ff00, epsilon: 0.4 }
+      // Pixi - Blur
+      case 'filter-kawase-blur':
+        return { blur: 4, quality: 3 }
+      case 'filter-tilt-shift':
+        return { blur: 100, gradientBlur: 600, start: { x: 0, y: 0 }, end: { x: 600, y: 600 } }
+      case 'filter-backdrop-blur':
+        return { strength: 8, quality: 4 }
+      // Pixi - Artistic
+      case 'filter-ascii':
+        return { size: 8 }
+      case 'filter-cross-hatch':
+        return {}
+      case 'filter-dot':
+        return { scale: 1, angle: 5 }
+      case 'filter-crt':
+        return { curvature: 1, lineWidth: 1, lineContrast: 0.25, verticalLine: false, noise: 0.3, noiseSize: 1, seed: 0, vignetting: 0.3, vignettingAlpha: 1, vignettingBlur: 0.3, time: 0 }
+      case 'filter-old-film':
+        return { sepia: 0.3, noise: 0.3, noiseSize: 1, scratch: 0.5, scratchDensity: 0.3, scratchWidth: 1, vignetting: 0.3, vignettingAlpha: 1, vignettingBlur: 0.3 }
+      case 'filter-glitch':
+        return { slices: 5, offset: 100, direction: 0, fillMode: 0, seed: 0, average: false, minSize: 8, sampleSize: 512 }
+      case 'filter-rgb-split':
+        return { red: { x: -10, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 10, y: 0 } }
+      case 'filter-simplex-noise':
+        return { scale: 50, animationFrequency: 0 }
+      // Pixi - Lighting
+      case 'filter-bloom':
+        return { blur: 2, quality: 4, strength: 1 }
+      case 'filter-advanced-bloom':
+        return { threshold: 0.5, bloomScale: 1, brightness: 1, blur: 8, quality: 4 }
+      case 'filter-glow':
+        return { distance: 10, outerStrength: 4, innerStrength: 0, color: 0xffffff, quality: 0.1 }
+      case 'filter-godray':
+        return { angle: 30, gain: 0.5, lacunarity: 2.5, parallel: true, time: 0, center: { x: 0, y: 0 } }
+      case 'filter-simple-lightmap':
+        return { color: 0xffffff, alpha: 1 }
+      // Pixi - Stylize
+      case 'filter-bevel':
+        return { rotation: 45, thickness: 2, lightColor: 0xffffff, lightAlpha: 0.7, shadowColor: 0x000000, shadowAlpha: 0.7 }
+      case 'filter-drop-shadow':
+        return { rotation: 45, distance: 5, color: 0x000000, alpha: 0.5, shadowOnly: false, blur: 2, quality: 3 }
+      case 'filter-outline':
+        return { thickness: 1, color: 0x000000, quality: 0.1 }
+      case 'filter-reflection':
+        return { mirror: true, boundary: 0.5, amplitude: { x: 0, y: 20 }, waveLength: { x: 30, y: 100 }, alpha: { x: 1, y: 1 }, time: 0 }
+      // Pixi - Utility
+      case 'filter-convolution':
+        return { matrix: [0, 0, 0, 0, 1, 0, 0, 0, 0], width: 200, height: 200 }
+      case 'filter-color-gradient':
+      case 'filter-color-map':
+      case 'filter-multi-color-replace':
+        return {}
+      // Filters with no parameters
+      case 'filter-invert':
+      case 'filter-sepia':
+      case 'filter-grayscale':
+      case 'filter-enhance':
+      case 'filter-solarize':
+        return {}
+      default:
+        return {}
+    }
+  }
+
+  const updateFilterParams = (shapeId, filterId, params) => {
+    const shape = shapes[shapeId]
+    if (!shape || !shape.filters) return
+
+    const updatedFilters = shape.filters.map(f =>
+      f.id === filterId ? { ...f, params: { ...f.params, ...params } } : f
+    )
+
+    updateShape(shapeId, { filters: updatedFilters })
+  }
+
+  const removeFilter = (shapeId, filterId) => {
+    const shape = shapes[shapeId]
+    if (!shape || !shape.filters) return
+
+    const updatedFilters = shape.filters.filter(f => f.id !== filterId)
+    updateShape(shapeId, { filters: updatedFilters })
+  }
+
+  const toggleFilterEnabled = (shapeId, filterId) => {
+    const shape = shapes[shapeId]
+    if (!shape || !shape.filters) return
+
+    const updatedFilters = shape.filters.map(f =>
+      f.id === filterId ? { ...f, enabled: !f.enabled } : f
+    )
+
+    updateShape(shapeId, { filters: updatedFilters })
   }
 
   const applyBooleanOperation = (operation) => {
@@ -1873,7 +2272,7 @@ const KolEditor = () => {
   }
 
   const handleFilterSelect = (optionId) => {
-    applyFilter(optionId)
+    addFilter(optionId)
     setFilterMenuOpen(false)
   }
 
@@ -1894,38 +2293,254 @@ const KolEditor = () => {
     setCanvasDialog((prev) => ({ ...prev, open: false }))
   }
 
+  // Helper function to get fill props based on fillType
+  const getFillProps = (shape) => {
+    const fillType = shape.fillType || 'solid'
+
+    if (fillType === 'solid') {
+      return { fill: shape.color }
+    }
+
+    if (fillType === 'gradient') {
+      // Convert normalized 0-1 coords to actual shape coords
+      const startX = (shape.gradientStart?.x ?? 0) * shape.width
+      const startY = (shape.gradientStart?.y ?? 0.5) * shape.height
+      const endX = (shape.gradientEnd?.x ?? 1) * shape.width
+      const endY = (shape.gradientEnd?.y ?? 0.5) * shape.height
+
+      const startColor = shape.gradientStartColor || shape.color
+      const endColor = shape.gradientEndColor || '#ffffff'
+      const startOpacity = shape.gradientStartOpacity ?? 1
+      const endOpacity = shape.gradientEndOpacity ?? 1
+
+      // Convert hex + opacity to rgba
+      const hexToRgba = (hex, opacity) => {
+        const r = parseInt(hex.slice(1, 3), 16)
+        const g = parseInt(hex.slice(3, 5), 16)
+        const b = parseInt(hex.slice(5, 7), 16)
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`
+      }
+
+      return {
+        fillLinearGradientStartPoint: { x: startX, y: startY },
+        fillLinearGradientEndPoint: { x: endX, y: endY },
+        fillLinearGradientColorStops: [0, hexToRgba(startColor, startOpacity), 1, hexToRgba(endColor, endOpacity)],
+      }
+    }
+
+    if (fillType === 'image' && shape.fillImageElement) {
+      // Image fill - use Pixi-filtered image if available, otherwise original
+      const img = pixiFilteredImages[shape.id] || shape.fillImageElement
+      const imgRatio = img.width / img.height
+      const shapeRatio = shape.width / shape.height
+
+      let scale = 1
+      let offsetX = 0
+      let offsetY = 0
+
+      if (imgRatio > shapeRatio) {
+        scale = shape.height / img.height
+        const scaledWidth = img.width * scale
+        offsetX = (scaledWidth - shape.width) / 2 / scale
+      } else {
+        scale = shape.width / img.width
+        const scaledHeight = img.height * scale
+        offsetY = (scaledHeight - shape.height) / 2 / scale
+      }
+
+      return {
+        fillPatternImage: img,
+        fillPatternRepeat: 'no-repeat',
+        fillPatternScaleX: scale,
+        fillPatternScaleY: scale,
+        fillPatternOffsetX: offsetX,
+        fillPatternOffsetY: offsetY,
+      }
+    }
+
+    // Fallback to solid color
+    return { fill: shape.color }
+  }
+
   const renderObject = (frameId, shape) => {
+    // Process layer effects
+    const effects = shape.effects || []
+    const dropShadow = effects.find(e => e.type === 'drop-shadow' && e.enabled)
+    const blur = effects.find(e => e.type === 'blur' && e.enabled)
+    const backgroundBlur = effects.find(e => e.type === 'background-blur' && e.enabled)
+    const noise = effects.find(e => e.type === 'noise' && e.enabled)
+
+    // Build filters array - combine layer effects and color adjustment filters
+    const filters = []
+
+    // Layer effects filters
+    if (blur || backgroundBlur) filters.push(Konva.Filters.Blur)
+    if (noise) {
+      filters.push(Konva.Filters.Noise)
+      // Add grayscale filter for monochromatic noise
+      if (noise.monochromatic !== false) {
+        filters.push(Konva.Filters.Grayscale)
+      }
+    }
+
+    // Color adjustment filters from shape.filters
+    const shapeFilters = shape.filters || []
+    shapeFilters.forEach(filter => {
+      if (!filter.enabled) return
+
+      switch (filter.type) {
+        case 'filter-blur':
+          filters.push(Konva.Filters.Blur)
+          break
+        case 'filter-brightness':
+          filters.push(Konva.Filters.Brightness)
+          break
+        case 'filter-contrast':
+          filters.push(Konva.Filters.Contrast)
+          break
+        case 'filter-hsl':
+          filters.push(Konva.Filters.HSL)
+          break
+        case 'filter-hsv':
+          filters.push(Konva.Filters.HSV)
+          break
+        case 'filter-rgb':
+          filters.push(Konva.Filters.RGB)
+          break
+        case 'filter-invert':
+          filters.push(Konva.Filters.Invert)
+          break
+        case 'filter-sepia':
+          filters.push(Konva.Filters.Sepia)
+          break
+        case 'filter-grayscale':
+          filters.push(Konva.Filters.Grayscale)
+          break
+        case 'filter-enhance':
+          filters.push(Konva.Filters.Enhance)
+          break
+        case 'filter-pixelate':
+          filters.push(Konva.Filters.Pixelate)
+          break
+        case 'filter-posterize':
+          filters.push(Konva.Filters.Posterize)
+          break
+        case 'filter-solarize':
+          filters.push(Konva.Filters.Solarize)
+          break
+        case 'filter-emboss':
+          filters.push(Konva.Filters.Emboss)
+          break
+        case 'filter-noise':
+          filters.push(Konva.Filters.Noise)
+          break
+        case 'filter-threshold':
+          filters.push(Konva.Filters.Threshold)
+          break
+      }
+    })
+
     const commonProps = {
+      key: `${shape.id}-${JSON.stringify(shape.effects || [])}-${JSON.stringify(shape.filters || [])}`,
       ref: (node) => {
-        if (node) nodeRefs.current.set(shape.id, node)
-        else nodeRefs.current.delete(shape.id)
+        if (node) {
+          nodeRefs.current.set(shape.id, node)
+
+          // Apply filter parameters from shape.filters
+          shapeFilters.forEach(filter => {
+            if (!filter.enabled) return
+
+            Object.entries(filter.params).forEach(([key, value]) => {
+              if (node[key]) {
+                node[key](value)
+              }
+            })
+          })
+
+          // Cache the node if filters are applied (required for filters to work)
+          if (filters.length > 0) {
+            // Clear cache first, then re-cache to apply filter changes
+            node.clearCache()
+            node.cache()
+            node.getLayer()?.batchDraw()
+          }
+        } else {
+          nodeRefs.current.delete(shape.id)
+        }
       },
       rotation: shape.rotation,
       draggable: !nodeEditMode, // Disable dragging in node edit mode
+      listening: true, // Always listen for events
       opacity: shape.opacity,
-      onClick: (e) => handleCanvasSelection(frameId, shape.id, e),
-      onTap: (e) => handleCanvasSelection(frameId, shape.id, e),
+      globalCompositeOperation: shape.blendMode || 'source-over',
+      // Apply drop shadow
+      ...(dropShadow && {
+        shadowColor: dropShadow.color,
+        shadowBlur: dropShadow.blur,
+        shadowOffsetX: dropShadow.offsetX,
+        shadowOffsetY: dropShadow.offsetY,
+        shadowOpacity: dropShadow.opacity ?? 1,
+        shadowEnabled: true,
+      }),
+      // Apply filters
+      ...(filters.length > 0 && {
+        filters: filters,
+      }),
+      // Apply blur radius - check both layer effects and filter blur
+      ...(() => {
+        const layerBlurRadius = blur?.radius || backgroundBlur?.radius
+        const filterBlur = shapeFilters.find(f => f.enabled && f.type === 'filter-blur')
+        const filterBlurRadius = filterBlur?.params?.blurRadius
+
+        // Use the maximum blur radius if both exist, or whichever exists
+        const blurRadius = layerBlurRadius && filterBlurRadius
+          ? Math.max(layerBlurRadius, filterBlurRadius)
+          : (layerBlurRadius || filterBlurRadius)
+
+        return blurRadius ? { blurRadius } : {}
+      })(),
+      // Apply noise amount
+      ...(noise && {
+        noise: noise.amount,
+      }),
+      // Apply noise monochromatic setting
+      ...(noise && noise.monochromatic !== undefined && {
+        noiseMonochromatic: noise.monochromatic,
+      }),
+      onClick: (e) => {
+        console.log('Shape clicked:', shape.id, shape.type)
+        e.cancelBubble = true
+        handleCanvasSelection(frameId, shape.id, e)
+      },
+      onTap: (e) => {
+        console.log('Shape tapped:', shape.id, shape.type)
+        e.cancelBubble = true
+        handleCanvasSelection(frameId, shape.id, e)
+      },
       onDragStart: (e) => handleObjectDragStart(frameId, shape, e),
       onDragEnd: (e) => handleObjectDragEnd(frameId, shape.id, shape.type, e.target),
       onTransformEnd: (e) => handleObjectTransformEnd(frameId, shape.id, shape.type, e.target),
       onTransform: (e) => e.target.getLayer().batchDraw(),
     }
 
+    // Get fill props based on fillType (solid, gradient, image)
+    const fillProps = getFillProps(shape)
+
     if (shape.type === 'rect') {
-      return <Rect key={shape.id} {...commonProps} x={shape.x} y={shape.y} width={shape.width} height={shape.height} fill={shape.color} />
+      return <Rect key={shape.id} {...commonProps} x={shape.x} y={shape.y} width={shape.width} height={shape.height} {...fillProps} />
     }
     if (shape.type === 'circle') {
       const radius = Math.min(shape.width, shape.height) / 2
-      return <Circle key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} radius={radius} fill={shape.color} />
+      return <Circle key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} radius={radius} {...fillProps} />
     }
     if (shape.type === 'triangle' || shape.type === 'polygon') {
       const sides = shape.type === 'triangle' ? 3 : 6
       const radius = Math.min(shape.width, shape.height) / 2
-      return <RegularPolygon key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} sides={sides} radius={radius} fill={shape.color} />
+      return <RegularPolygon key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} sides={sides} radius={radius} {...fillProps} />
     }
     if (shape.type === 'star') {
       const outer = Math.min(shape.width, shape.height) / 2
-      return <Star key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} numPoints={5} innerRadius={outer / 2.5} outerRadius={outer} fill={shape.color} />
+      return <Star key={shape.id} {...commonProps} x={shape.x + shape.width / 2} y={shape.y + shape.height / 2} numPoints={5} innerRadius={outer / 2.5} outerRadius={outer} {...fillProps} />
     }
     if (shape.type === 'line' || shape.type === 'scribble') {
       return <Line key={shape.id} {...commonProps} x={shape.x} y={shape.y} points={shape.meta?.points ?? []} stroke={shape.color} strokeWidth={shape.type === 'line' ? 4 : 3} lineCap="round" lineJoin="round" />
@@ -1944,7 +2559,7 @@ const KolEditor = () => {
             y={shape.y}
             points={points}
             closed={true}
-            fill={shape.color}
+            {...fillProps}
             fillEnabled={true}
             stroke="transparent"
             strokeWidth={0}
@@ -2161,10 +2776,114 @@ const KolEditor = () => {
         />
       )
     }
+    if (shape.type === 'photo') {
+      const handlePhotoUpload = () => {
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.accept = 'image/*'
+        input.onchange = (e) => {
+          const file = e.target.files?.[0]
+          if (file) {
+            const reader = new FileReader()
+            reader.onload = (event) => {
+              const imageUrl = event.target.result
+              // Load the image to get its element
+              const img = new window.Image()
+              img.src = imageUrl
+              img.onload = () => {
+                updateShape(shape.id, { imageUrl, imageElement: img })
+              }
+            }
+            reader.readAsDataURL(file)
+          }
+        }
+        input.click()
+      }
+
+      // Build rect with image fill or placeholder
+      const rectProps = {
+        ...commonProps,
+        x: shape.x,
+        y: shape.y,
+        width: shape.width,
+        height: shape.height,
+        onDblClick: handlePhotoUpload,
+      }
+
+      if (shape.imageElement && shape.imageElement.width && shape.imageElement.height) {
+        // Use Pixi-filtered image if available, otherwise use original
+        const imageToUse = pixiFilteredImages[shape.id] || shape.imageElement
+
+        // Has image - use as fill pattern with cover behavior
+        rectProps.fillPatternImage = imageToUse
+        rectProps.fillPatternRepeat = 'no-repeat'
+
+        // Calculate scale to cover (like CSS object-fit: cover)
+        const imgWidth = imageToUse.width
+        const imgHeight = imageToUse.height
+        const imgRatio = imgWidth / imgHeight
+        const frameRatio = shape.width / shape.height
+
+        let scale = 1
+        let offsetX = 0
+        let offsetY = 0
+
+        if (imgRatio > frameRatio) {
+          // Image is wider - fit to height, crop sides
+          scale = shape.height / imgHeight
+          const scaledWidth = imgWidth * scale
+          offsetX = (scaledWidth - shape.width) / 2 / scale
+        } else {
+          // Image is taller - fit to width, crop top/bottom
+          scale = shape.width / imgWidth
+          const scaledHeight = imgHeight * scale
+          offsetY = (scaledHeight - shape.height) / 2 / scale
+        }
+
+        rectProps.fillPatternScaleX = scale
+        rectProps.fillPatternScaleY = scale
+        rectProps.fillPatternOffsetX = offsetX
+        rectProps.fillPatternOffsetY = offsetY
+      } else {
+        // No image - show placeholder with solid fill (no pattern)
+        rectProps.fill = shape.fill || '#fafafa'
+        rectProps.fillPatternImage = null
+        rectProps.fillPatternScaleX = undefined
+        rectProps.fillPatternScaleY = undefined
+        rectProps.fillPatternOffsetX = undefined
+        rectProps.fillPatternOffsetY = undefined
+        if (!shape.imageUrl) {
+          rectProps.onClick = handlePhotoUpload
+        }
+      }
+
+      const photoRect = <Rect key={shape.id} {...rectProps} />
+
+      // Add "Upload Photo" text if no image
+      if (!shape.imageElement) {
+        const photoText = (
+          <KonvaText
+            key={`${shape.id}-text`}
+            text="Upload Photo"
+            x={shape.x}
+            y={shape.y + shape.height / 2 - 10}
+            width={shape.width}
+            align="center"
+            fontSize={14}
+            fill="#d4d4d8"
+            listening={false}
+          />
+        )
+        return [photoRect, photoText]
+      }
+
+      return photoRect
+    }
     return null
   }
 
   const handleCanvasSelection = (frameId, shapeId, event) => {
+    console.log('handleCanvasSelection called:', { frameId, shapeId })
     // Shift+click for multi-select
     if (event?.evt?.shiftKey) {
       if (selectedShapeIds.length > 0) {
@@ -2263,10 +2982,37 @@ const KolEditor = () => {
     if (drag.mode === 'move') {
       const newX = Math.max(0, drag.originalPosition.x + dx)
       const newY = Math.max(0, drag.originalPosition.y + dy)
-      updateShapePosition(drag.frameId, {
-        x: newX,
-        y: newY
-      })
+      const deltaX = newX - drag.originalPosition.x
+      const deltaY = newY - drag.originalPosition.y
+
+      // Update frame and all its children positions in one state update
+      const frame = shapes[drag.frameId]
+      if (frame) {
+        const newShapes = { ...shapes }
+
+        // Update frame position
+        newShapes[drag.frameId] = {
+          ...frame,
+          x: newX,
+          y: newY
+        }
+
+        // Move all children with the frame
+        if (frame.children) {
+          frame.children.forEach(childId => {
+            const child = shapes[childId]
+            if (child) {
+              newShapes[childId] = {
+                ...child,
+                x: child.x + deltaX,
+                y: child.y + deltaY
+              }
+            }
+          })
+        }
+
+        setShapes(newShapes)
+      }
     }
 
     if (drag.mode === 'resize') {
@@ -2323,8 +3069,11 @@ const KolEditor = () => {
   return (
     <div className="min-h-screen w-full bg-zinc-900 text-[12px] text-zinc-100 flex flex-col" style={{ cursor: 'url(/icons/cursor-selector.svg) 0 0, default' }}>
       <TopNav
+        fileName={fileName}
+        onFileNameChange={setFileName}
         onCanvasSizeClick={() => setCanvasDialog({ open: true, width: canvasSize.width, height: canvasSize.height })}
         onClearDocument={handleClearDocument}
+        onGoHome={handleGoHome}
         canvasSize={canvasSize}
       />
 
@@ -2429,6 +3178,7 @@ const KolEditor = () => {
             onNodeDragEnd={() => setEditingNodeIndex(null)}
             renderObject={renderObject}
             renderDraftGrid={renderDraftGrid}
+            onGradientHandleDrag={handleGradientHandleDrag}
           />
         </div>
 
@@ -2439,15 +3189,25 @@ const KolEditor = () => {
           onLayerNameChange={(name) => {
             if (selectedFrame) updateShape(selectedFrame.id, { name })
           }}
-          onLayerBackgroundChange={(background) => {
+          onLayerBackgroundChange={(colorData) => {
             if (selectedFrame) {
-              updateShape(selectedFrame.id, { background })
+              // colorData is {color: '#hex', opacity: 0-1}
+              const updates = {}
+              if (colorData.color) updates.fillColor = colorData.color
+              if (colorData.opacity !== undefined) updates.fillOpacity = colorData.opacity
+              updateShape(selectedFrame.id, updates)
             } else {
-              setCanvasBackground(background)
+              // For global canvas background, build rgba string
+              const rgba = `rgba(${parseInt(colorData.color.slice(1,3), 16)}, ${parseInt(colorData.color.slice(3,5), 16)}, ${parseInt(colorData.color.slice(5,7), 16)}, ${colorData.opacity})`
+              setCanvasBackground(rgba)
             }
           }}
           onLayerPropertyChange={(prop, value) => {
-            if (selectedFrame) updateShape(selectedFrame.id, { [prop]: parseFloat(value) })
+            if (selectedFrame) {
+              // For blendMode and effects, keep as-is; for numeric props, parse as float
+              const parsedValue = (prop === 'blendMode' || prop === 'effects') ? value : parseFloat(value)
+              updateShape(selectedFrame.id, { [prop]: parsedValue })
+            }
           }}
           onObjectPropertyChange={handlePositionInput}
           onObjectColorChange={handleColorChange}
@@ -2455,9 +3215,16 @@ const KolEditor = () => {
           onObjectTextChange={(prop, value) => {
             if (selectedObject) updateShape(selectedObject.id, { [prop]: value })
           }}
-          inspectorFilter={inspectorFilter}
-          setInspectorFilter={setInspectorFilter}
           onExpandBooleanGroup={expandBooleanGroup}
+          onUpdateFilterParams={(shapeId, filterId, params) => {
+            updateFilterParams(shapeId, filterId, params)
+          }}
+          onRemoveFilter={(shapeId, filterId) => {
+            removeFilter(shapeId, filterId)
+          }}
+          onToggleFilterEnabled={(shapeId, filterId) => {
+            toggleFilterEnabled(shapeId, filterId)
+          }}
         />
       </div>
 

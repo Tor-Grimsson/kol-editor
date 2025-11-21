@@ -1,35 +1,27 @@
 {
   "project_profile": [
-    "Konva-based image editor built with React 19 + Vite + Tailwind. Main editor at src/pages/KolEditor.jsx (1040 lines, organism-composed). Component library at /components with atomic design structure (atoms/molecules/organisms)."
+    "Konva-based image editor built with React 19 + Vite + Tailwind. Main editor at src/pages/KolEditor.jsx (~3200 lines). Component library at /components with atomic design structure (atoms/molecules/organisms)."
   ],
-  "active_objectives": [
-    {
-      "id": "dnd-reordering-fix",
-      "summary": "✅ COMPLETE: Fixed drag-and-drop reordering bugs. Implemented standard dnd-kit index-based pattern. Objects can now reorder above/below canvases freely. Fixed frameId overwrite bug.",
-      "owner": "assistant",
-      "status": "completed",
-      "last_updated": "2025-11-20T10:30Z"
-    }
-  ],
+  "active_objectives": [],
   "implementation_notes": [
     "Atomic design component library: 4 atoms (Button, Input, Separator, Label), 7 molecules (ToolbarButton, LayerItem, ObjectItem, ColorPicker, PropertyInput, RangeSlider, CanvasHandle), 5 organisms (TopNav, Toolbar, LayersSidebar, Inspector, CanvasArea).",
     "Component showcase at /components/atoms, /components/molecules, /components/organisms with live interactive examples.",
     "Icons moved from public/icons to src/components/icons/svg and bundled via Vite import.meta.glob. Icon.jsx updated to load SVGs from bundle.",
-    "Constants extracted to src/constants/editor.js (TOOLBAR_LAYOUT, TOOL_SUBMENUS, FILTER_OPTIONS). Utilities in src/utils/colors.js and src/utils/geometry.js.",
-    "KolEditor (src/pages/KolEditor.jsx, 1040 lines) now organism-composed. Integrated all 5 organisms. Reduced from 1654 lines (37% code reduction).",
-    "Dependencies: React 19, react-dom, konva, react-konva, react-router-dom, plus dev tooling (Vite, Tailwind, ESLint).",
+    "Constants extracted to src/constants/editor.js (TOOLBAR_LAYOUT, TOOL_SUBMENUS, FILTER_OPTIONS). Utilities in src/utils/colors.js, src/utils/geometry.js, src/utils/pixiFilters.js.",
+    "Dependencies: React 19, react-dom, konva, react-konva, pixi.js, pixi-filters, react-router-dom, plus dev tooling (Vite, Tailwind, ESLint).",
     "Editor features: toolbar with tool dropdowns, layer/canvas sidebar, property inspector, rulers, transform handles, multi-canvas support, undo/redo (Cmd+Z/Shift+Z), Alt-drag cloning, zoom-at-pointer.",
-    "Full-screen layout with TopNav → 3-column flex (LayersSidebar | Toolbar+CanvasArea | Inspector). No rounded corners.",
-    "Drag-and-drop: Uses @dnd-kit/core with standard index-based pattern. Single flattened SortableContext, closestCenter collision detection. Before/after determined by index comparison (activeIndex > overIndex = moving up = insert before)."
+    "Filter system: 51 total filters (13 Konva native + 38 Pixi WebGL). Konva filters applied directly, Pixi filters processed via WebGL pipeline (src/utils/pixiFilters.js). Filtered images cached in pixiFilteredImages state.",
+    "Full-screen layout with TopNav → 3-column flex (LayersSidebar | Toolbar+CanvasArea | Inspector). No rounded corners. Flat UI design.",
+    "Drag-and-drop: Uses @dnd-kit/core with standard index-based pattern. Single flattened SortableContext, closestCenter collision detection.",
+    "Fill system: Three fill types (solid, gradient, image). Gradient has draggable direction handles on canvas. Image fills support Pixi filters same as photo shapes. ColorPicker has dropdown for fill type selection."
   ],
   "decision_log": [
+    "2025-11-21: Implemented three fill types (solid, gradient, image) with ColorPicker dropdown, gradient direction handles on canvas, and Pixi filter support for image fills. See docs/llm-context-protocol/session-logs/2025-11-21-fill-types-sessionlog.md",
+    "2025-01-20: Integrated 51 image filters (13 Konva + 38 Pixi.js WebGL). Added pixi.js and pixi-filters dependencies. Created src/utils/pixiFilters.js for WebGL pipeline. Fixed filter state management bug. Redesigned filter UI to flat design. Added displacement presets. See docs/llm-context-protocol/session-logs/2025-01-20-pixi-filters-sessionlog.md",
     "2025-11-20: Fixed drag-and-drop reordering - Switched from nested SortableContext to single flat context with index-based position detection (standard dnd-kit pattern). Fixed frameId overwrite bug. Unified top-level list (objects + canvases). See docs/llm-context-protocol/session-logs/2025-11-20-dnd-reordering-sessionlog.md",
-    "2025-11-18: Phase 5 Integration complete - Renamed KonvaLayerEditor → KolEditor, integrated all 5 organisms. Reduced from 1654 → 1040 lines (37% reduction). Atomic design refactor complete.",
+    "2025-11-18: Phase 5 Integration complete - Renamed KonvaLayerEditor → KolEditor, integrated all 5 organisms. Atomic design refactor complete.",
     "2025-11-18: Built complete atomic design component library (16 components) with interactive showcase pages at /components routes.",
     "2025-11-18: Moved icons from public/icons to src/components/icons/svg for bundling with Vite; updated Icon.jsx to use import.meta.glob.",
-    "2025-11-18: Extracted constants (TOOLBAR_LAYOUT, TOOL_SUBMENUS, FILTER_OPTIONS) to src/constants/editor.js and utilities (color conversion, geometry) to src/utils/.",
-    "2025-11-18: Created docs/1.0.0-atomic-refactor.md documenting refactor plan, progress, and component structure.",
-    "2025-11-18: Major cleanup - removed all experimental editors (Fabric, PixiJS, TUI, filter demos) and dependencies, keeping only Konva-based implementation.",
     "2025-11-17: Added docs/llm-context-protocol/protocol.md and llm-rules.md for LLM collaboration workflow."
   ],
   "communication_style": [
